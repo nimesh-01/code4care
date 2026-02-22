@@ -2,35 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap');
+
 @layer base {
   body {
-    @apply font-sans antialiased;
+    @apply font-sans antialiased bg-cream-50 dark:bg-dark-900 text-teal-900 dark:text-cream-50 transition-colors duration-300;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-gradient-to-r from-soul-purple to-soul-pink text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200;
+    @apply bg-coral-500 hover:bg-coral-600 text-white font-semibold py-3 px-6 rounded-full shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300;
   }
 
   .btn-secondary {
-    @apply bg-white text-soul-purple border-2 border-soul-purple font-semibold py-3 px-6 rounded-lg hover:bg-soul-purple hover:text-white transition-all duration-200;
+    @apply bg-transparent text-teal-700 dark:text-teal-400 border-2 border-teal-600 dark:border-teal-400 font-semibold py-3 px-6 rounded-full hover:bg-teal-600 hover:text-white dark:hover:bg-teal-400 dark:hover:text-dark-900 transition-all duration-300;
   }
 
   .input-field {
-    @apply w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-soul-purple focus:border-transparent outline-none transition-all duration-200;
+    @apply w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent outline-none transition-all duration-300;
   }
 
   .card {
-    @apply bg-white rounded-2xl shadow-xl p-8;
+    @apply bg-white dark:bg-dark-800 rounded-2xl shadow-xl p-8 transition-colors duration-300;
   }
 
   .gradient-bg {
-    @apply bg-gradient-to-br from-soul-purple via-soul-pink to-soul-blue;
+    @apply bg-gradient-to-br from-coral-400 via-coral-500 to-teal-500 dark:from-dark-900 dark:via-dark-800 dark:to-dark-900;
   }
 
   .glass-effect {
-    @apply bg-white/80 backdrop-blur-lg;
+    @apply bg-cream-50/80 dark:bg-dark-900/80 backdrop-blur-lg;
   }
 }
 
@@ -40,11 +42,11 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  @apply bg-cream-100 dark:bg-dark-800;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gradient-to-b from-soul-purple to-soul-pink rounded-full;
+  @apply bg-gradient-to-b from-coral-400 to-coral-600 rounded-full;
 }
 
 /* Animations */

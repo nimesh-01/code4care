@@ -5,6 +5,24 @@ const authMiddleware = require('../middlewares/auth.middleware')
 const router = express.Router()
 const multer = require('multer')
 const upload = multer({ storage: multer.memoryStorage() })
+
+// Middleware to parse FormData bracket notation (e.g., fullname[firstname] -> fullname.firstname)
+const parseBracketNotation = (req, res, next) => {
+    const parsed = {}
+    for (const key of Object.keys(req.body)) {
+        const match = key.match(/^(\w+)\[(\w+)\]$/)
+        if (match) {
+            const [, parent, child] = match
+            if (!parsed[parent]) parsed[parent] = {}
+            parsed[parent][child] = req.body[key]
+        } else {
+            parsed[key] = req.body[key]
+        }
+    }
+    req.body = parsed
+    next()
+}
+
 // Post /auth/register
 router.post('/register', validators.registerUserValidations, authController.registerUser)
 
@@ -27,7 +45,7 @@ router.get('/me', authMiddleware.authMiddleware, authController.getCurrentUser)
 router.get('/logout', authController.logoutUser)
 
 // put /auth/users/me - update user details (profile upload allowed)
-router.put('/users/me', authMiddleware.authMiddleware, upload.single('profile'), validators.updateUserValidations, authController.updateUser)
+router.put('/users/me', authMiddleware.authMiddleware, upload.single('profile'), parseBracketNotation, validators.updateUserValidations, authController.updateUser)
 
 // get /auth/orphanages - list orphanages (filters: state, city). orphanAdmin cannot use this route
 router.get('/orphanages', authMiddleware.authMiddleware, validators.orphanageListValidations, authController.listOrphanages)
@@ -40,6 +58,8 @@ router.get('/orphanage', authMiddleware.authMiddleware, authController.getOrphan
 
 // upload document for orphanage (multipart/form-data) - field name 'document'
 router.post('/orphanage/document', authMiddleware.authMiddleware, upload.single('document'), authController.uploadOrphanageDocument)
+// Public document upload for pending orphanages during registration (no auth required)
+router.post('/orphanage/:orphanageId/document', upload.single('document'), authController.uploadOrphanageDocumentPublic)
 // delete document for orphanage - expects JSON body { field, fileId }
 router.delete('/orphanage/document', authMiddleware.authMiddleware, authController.deleteOrphanageDocument)
 

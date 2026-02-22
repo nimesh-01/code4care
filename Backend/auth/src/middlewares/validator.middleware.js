@@ -81,45 +81,27 @@ const resetPasswordValidations = [
     respondWithValidationErrors
 ];
 const orphanageValidations = [
-    body('name')
+    body('orphanage.name')
         .isString().withMessage('Name must be a string')
         .notEmpty().withMessage('Name is required'),
-    body('registrationNumber')
+    body('orphanage.registrationNumber')
         .isString().withMessage('Registration number must be a string')
         .notEmpty().withMessage('Registration number is required'),
-    body('orphanage_mail')
+    body('orphanage.orphanage_mail')
         .isEmail().withMessage('Valid orphanage email is required'),
-    body('orphanage_phone')
+    body('orphanage.orphanage_phone')
         .isString().withMessage('Phone must be a string')
         .notEmpty().withMessage('Phone is required'),
-    body('address.street')
+    body('orphanage.address.street')
         .optional().isString().withMessage('Street must be a string'),
-    body('address.city')
+    body('orphanage.address.city')
         .optional().isString().withMessage('City must be a string'),
-    body('address.state')
+    body('orphanage.address.state')
         .optional().isString().withMessage('State must be a string'),
-    body('address.pincode')
+    body('orphanage.address.pincode')
         .optional().isString().withMessage('Pincode must be a string'),
-    body('address.country')
+    body('orphanage.address.country')
         .optional().isString().withMessage('Country must be a string'),
-    body('documents.registrationCertificate')
-        .optional().isURL().withMessage('registrationCertificate must be a URL'),
-    body('documents.governmentLicense')
-        .optional().isURL().withMessage('governmentLicense must be a URL'),
-    body('documents.otherDocuments')
-        .optional().isArray().withMessage('otherDocuments must be an array'),
-    body('documents.otherDocuments.*')
-        .optional().isURL().withMessage('Each document must be a URL'),
-    body('status')
-        .optional().isIn(['pending', 'approved', 'rejected', 'blocked']).withMessage('Invalid status'),
-    body('verifiedBy')
-        .optional().isMongoId().withMessage('verifiedBy must be a valid id'),
-    body('orphanAdmin')
-        .isMongoId().withMessage('orphanAdmin must be a valid id'),
-    body('verificationNote')
-        .optional().isString().withMessage('verificationNote must be a string'),
-    body('approvedAt')
-        .optional().isISO8601().withMessage('approvedAt must be a valid date').toDate(),
     respondWithValidationErrors
 ];
 const orphanageUpdateValidations = [

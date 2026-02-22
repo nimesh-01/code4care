@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import api from '../services/api'
+import { authAPI } from '../services/api'
 
 const AuthContext = createContext(null)
 
@@ -21,38 +21,63 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuth = async () => {
     try {
-      const token = localStorage.getItem('token')
-      if (token) {
-        const response = await api.get('/auth/me')
-        setUser(response.data.user)
-      }
+      const response = await authAPI.getCurrentUser()
+      setUser(response.data.user)
     } catch (error) {
       console.error('Auth check failed:', error)
-      localStorage.removeItem('token')
+      setUser(null)
     } finally {
       setLoading(false)
     }
   }
 
-  const login = async (email, password, role) => {
-    const response = await api.post('/auth/login', { email, password, role })
-    const { token, user: userData } = response.data
-    localStorage.setItem('token', token)
+  const login = async (credentials) => {
+    const response = await authAPI.login(credentials)
+    const userData = response.data.user
     setUser(userData)
     return userData
   }
 
   const register = async (userData) => {
-    const response = await api.post('/auth/register', userData)
-    const { token, user: newUser } = response.data
-    localStorage.setItem('token', token)
-    setUser(newUser)
-    return newUser
+    // If registering as orphanAdmin, use registerOrphan endpoint
+    let response
+    if (userData.role === 'orphanAdmin') {
+      response = await authAPI.registerOrphan(userData)
+      // Don't set user for orphanAdmin - they need admin approval first
+      // Return response data including status and message
+      return { 
+        user: response.data.user, 
+        orphanage: response.data.orphanage,
+        status: response.data.status,
+        message: response.data.message,
+        isPending: true
+      }
+    } else {
+      response = await authAPI.register(userData)
+      const newUser = response.data.user
+      setUser(newUser)
+      return { user: newUser, isPending: false }
+    }
   }
 
-  const logout = () => {
-    localStorage.removeItem('token')
-    setUser(null)
+  const logout = async () => {
+    try {
+      await authAPI.logout()
+    } catch (error) {
+      console.error('Logout failed:', error)
+    } finally {
+      setUser(null)
+    }
+  }
+
+  const forgotPassword = async (email) => {
+    const response = await authAPI.forgotPassword(email)
+    return response.data
+  }
+
+  const resetPassword = async (token, newPassword) => {
+    const response = await authAPI.resetPassword(token, newPassword)
+    return response.data
   }
 
   const value = {
@@ -61,7 +86,9 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
-    checkAuth
+    checkAuth,
+    forgotPassword,
+    resetPassword
   }
 
   return (

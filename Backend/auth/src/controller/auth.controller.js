@@ -92,6 +92,49 @@ async function loginUser(req, res) {
             return res.status(401).json({ message: "Invalid password" });
         }
 
+        // For orphanAdmin users, check orphanage status before allowing login
+        if (User.role === 'orphanAdmin' && User.orphanageId) {
+            const orphanage = await Orphanage.findById(User.orphanageId);
+            if (!orphanage) {
+                return res.status(404).json({ message: "Orphanage not found" });
+            }
+
+            // Check orphanage status
+            if (orphanage.status === 'pending') {
+                return res.status(403).json({
+                    message: "Your orphanage registration is still under review. Please wait for admin approval.",
+                    status: 'pending',
+                    orphanageName: orphanage.name
+                });
+            }
+
+            if (orphanage.status === 'rejected') {
+                return res.status(403).json({
+                    message: orphanage.verificationNote || "Your orphanage registration has been rejected.",
+                    status: 'rejected',
+                    orphanageName: orphanage.name,
+                    verificationNote: orphanage.verificationNote
+                });
+            }
+
+            if (orphanage.status === 'blocked') {
+                return res.status(403).json({
+                    message: orphanage.verificationNote || "Your orphanage has been blocked.",
+                    status: 'blocked',
+                    orphanageName: orphanage.name,
+                    verificationNote: orphanage.verificationNote
+                });
+            }
+
+            // Only allow login if status is 'approved'
+            if (orphanage.status !== 'approved') {
+                return res.status(403).json({
+                    message: "Your orphanage is not approved for login.",
+                    status: orphanage.status
+                });
+            }
+        }
+
         // Build token payload
         const tokenPayload = {
             id: User._id,
@@ -135,10 +178,35 @@ async function loginUser(req, res) {
     }
 }
 async function getCurrentUser(req, res) {
-    return res.status(200).json({
-        message: "Current user fetched successfully",
-        user: req.user
-    })
+    try {
+        const userId = req.user.id
+        
+        // Fetch full user data from database
+        const user = await userModel.findById(userId).select('-password')
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' })
+        }
+        
+        return res.status(200).json({
+            message: "Current user fetched successfully",
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                fullname: user.fullname,
+                role: user.role,
+                phone: user.phone,
+                address: user.address,
+                profileUrl: user.profileUrl,
+                status: user.status,
+                orphanageId: user.orphanageId,
+                createdAt: user.createdAt
+            }
+        })
+    } catch (err) {
+        console.error('Error in getCurrentUser:', err)
+        return res.status(500).json({ message: 'Internal Server Error' })
+    }
 }
 async function updateUser(req, res) {
     try {
@@ -148,13 +216,13 @@ async function updateUser(req, res) {
         const existing = await userModel.findById(userId).select('+profileFileId')
         if (!existing) return res.status(404).json({ message: 'User not found' })
 
-        // uniqueness checks for username/email
+        // uniqueness checks for username
         if (req.body.username) {
             const u = await userModel.findOne({ username: req.body.username, _id: { $ne: userId } })
             if (u) return res.status(409).json({ message: 'Username already in use' })
         }
         const update = {}
-        const allowed = ['username',  'phone', 'fullname', 'address']
+        const allowed = ['username', 'phone', 'fullname', 'address']
         for (const key of allowed) {
             if (req.body[key] !== undefined) update[key] = req.body[key]
         }
@@ -266,7 +334,7 @@ async function registerOrphan(req, res) {
         // Expect user fields + orphanage fields in req.body
         const { username, email, password, fullname: { firstname, lastname }, phone } = req.body
         const orphanageData = req.body.orphanage || req.body; // allow nested or top-level
-
+        console.log("data in register orphan")
         // check existing user
         const isUserAlreadyExists = await userModel.findOne({ $or: [{ username }, { email }] })
         if (isUserAlreadyExists) {
@@ -321,11 +389,11 @@ async function registerOrphan(req, res) {
             publishToQueue('ORPHANAGE.CREATED', orphanage)
         ])
 
-        const token = jwt.sign({ id: user._id, username: user.username, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' })
-        res.cookie('token', token, { httpOnly: true, secure: true, maxage: 24 * 60 * 60 * 1000 })
-
+        // Don't auto-login for orphanAdmin - they need admin approval first
+        // Return success with pending status message
         return res.status(201).json({
-            message: 'Orphan admin and orphanage registered successfully',
+            message: 'Registration successful! Your orphanage is under review. You will be able to login once our team verifies your documents and approves your registration.',
+            status: 'pending',
             user: { id: user._id, username: user.username, email: user.email, role: user.role },
             orphanage: { id: orphanage._id, name: orphanage.name, status: orphanage.status }
         })
@@ -407,6 +475,7 @@ async function listOrphanages(req, res) {
 
 async function uploadOrphanageDocument(req, res) {
     try {
+        console.log('we are in uploadOrphanageDocument ')
         const userId = req.user.id
         const user = await userModel.findById(userId).select('role orphanageId')
         if (!user) return res.status(404).json({ message: 'User not found' })
@@ -518,4 +587,63 @@ async function getOrphanageById(req, res) {
     }
 }
 
-module.exports = { registerUser, registerOrphan, loginUser, getCurrentUser, updateUser, logoutUser, forgotPassword, resetPassword, updateOrphanage, uploadOrphanageDocument, deleteOrphanageDocument, getOrphanage, listOrphanages, getUserById, getOrphanageById }
+// Public document upload for pending orphanages during registration (no auth required)
+async function uploadOrphanageDocumentPublic(req, res) {
+    try {
+        const { orphanageId } = req.params
+        
+        // Find the orphanage
+        const orphanage = await Orphanage.findById(orphanageId)
+        if (!orphanage) {
+            return res.status(404).json({ message: 'Orphanage not found' })
+        }
+        
+        // Only allow public upload for pending orphanages
+        if (orphanage.status !== 'pending') {
+            return res.status(403).json({ 
+                message: 'Public document upload only allowed for pending orphanages. Please login to update documents.'
+            })
+        }
+        
+        if (!req.file || !req.file.buffer) {
+            return res.status(400).json({ message: 'No file uploaded' })
+        }
+        
+        const { originalname } = req.file
+        const field = req.body.field || 'otherDocuments'
+        const folder = `/orphanages/${orphanage._id}`
+        
+        const resp = await uploadBuffer(
+            req.file.buffer,
+            `${Date.now()}-${originalname}`,
+            folder,
+            req.file.mimetype
+        )
+        
+        const { url, fileId } = resp
+        
+        if (field === 'registrationCertificate' || field === 'governmentLicense') {
+            const key = `documents.${field}`
+            const updated = await Orphanage.findByIdAndUpdate(
+                orphanage._id,
+                { $set: { [key]: { url, fileId } } },
+                { new: true }
+            )
+            return res.status(200).json({ message: 'Document uploaded', url, fileId, orphanage: updated })
+        }
+        
+        // Push into otherDocuments
+        const docName = req.body.name || originalname
+        const updated = await Orphanage.findByIdAndUpdate(
+            orphanage._id,
+            { $push: { 'documents.otherDocuments': { name: docName, url, fileId } } },
+            { new: true }
+        )
+        return res.status(200).json({ message: 'Document uploaded', name: docName, url, fileId, orphanage: updated })
+    } catch (err) {
+        console.error('Error in uploadOrphanageDocumentPublic:', err)
+        return res.status(500).json({ message: 'Internal Server Error' })
+    }
+}
+
+module.exports = { registerUser, registerOrphan, loginUser, getCurrentUser, updateUser, logoutUser, forgotPassword, resetPassword, updateOrphanage, uploadOrphanageDocument, uploadOrphanageDocumentPublic, deleteOrphanageDocument, getOrphanage, listOrphanages, getUserById, getOrphanageById }

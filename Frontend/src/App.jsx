@@ -3,8 +3,13 @@ import { useAuth } from './context/AuthContext'
 
 // Pages
 import Home from './pages/Home'
+import About from './pages/About'
+import Children from './pages/Children'
+import Orphanages from './pages/Orphanages'
+import Profile from './pages/Profile'
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
+import ForgotPassword from './pages/auth/ForgotPassword'
 import UserDashboard from './pages/dashboard/UserDashboard'
 import VolunteerDashboard from './pages/dashboard/VolunteerDashboard'
 import AdminDashboard from './pages/dashboard/AdminDashboard'
@@ -39,8 +44,22 @@ function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Home />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/children" element={<Children />} />
+        <Route path="/orphanages" element={<Orphanages />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+
+        {/* Profile Page (Protected) */}
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute allowedRoles={['user', 'volunteer', 'orphanAdmin', 'superAdmin']}>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
 
         {/* User Dashboard */}
         <Route
@@ -66,7 +85,7 @@ function App() {
         <Route
           path="/dashboard/admin"
           element={
-            <ProtectedRoute allowedRoles={['admin']}>
+            <ProtectedRoute allowedRoles={['orphanAdmin']}>
               <AdminDashboard />
             </ProtectedRoute>
           }
@@ -76,7 +95,7 @@ function App() {
         <Route
           path="/dashboard/superadmin"
           element={
-            <ProtectedRoute allowedRoles={['superadmin']}>
+            <ProtectedRoute allowedRoles={['superAdmin']}>
               <SuperAdminDashboard />
             </ProtectedRoute>
           }
