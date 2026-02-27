@@ -294,14 +294,10 @@ const Register = () => {
         toast.success(result.message || 'Registration successful! Your orphanage is under review.')
         navigate('/login')
       } else {
-        // Regular user/volunteer registration - redirect to dashboard
+        // Regular user/volunteer registration - redirect based on role
         toast.success('Registration successful! Welcome to SoulConnect!')
-        const dashboardRoutes = {
-          user: '/dashboard/user',
-          volunteer: '/dashboard/volunteer',
-          orphanAdmin: '/dashboard/admin',
-        }
-        navigate(dashboardRoutes[user.role] || '/dashboard/user')
+        const destination = newUser.role === 'orphanAdmin' ? '/dashboard/admin' : '/'
+        navigate(destination)
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Registration failed. Please try again.')

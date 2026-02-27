@@ -47,8 +47,8 @@ router.get('/logout', authController.logoutUser)
 // put /auth/users/me - update user details (profile upload allowed)
 router.put('/users/me', authMiddleware.authMiddleware, upload.single('profile'), parseBracketNotation, validators.updateUserValidations, authController.updateUser)
 
-// get /auth/orphanages - list orphanages (filters: state, city). orphanAdmin cannot use this route
-router.get('/orphanages', authMiddleware.authMiddleware, validators.orphanageListValidations, authController.listOrphanages)
+// get /auth/orphanages - list orphanages (filters: state, city). Public browsing allowed
+router.get('/orphanages', authMiddleware.optionalAuthMiddleware, validators.orphanageListValidations, authController.listOrphanages)
 
 // put /auth/orphanage  - update orphanage details (only by orphanAdmin who owns it)
 router.put('/orphanage', validators.orphanageUpdateValidations, authMiddleware.authMiddleware, authController.updateOrphanage)
@@ -66,7 +66,7 @@ router.delete('/orphanage/document', authMiddleware.authMiddleware, authControll
 // Inter-service routes (for microservice communication)
 // Get user by ID
 router.get('/user/:userId', authMiddleware.authMiddleware, authController.getUserById)
-// Get orphanage by ID  
+// Get orphanage by ID (requires login)
 router.get('/orphanage/:orphanageId', authMiddleware.authMiddleware, authController.getOrphanageById)
 
 module.exports = router

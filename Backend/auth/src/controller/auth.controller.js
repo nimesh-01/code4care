@@ -60,6 +60,7 @@ async function registerUser(req, res) {
 
         res.status(201).json({
             message: "User registered successfully",
+            token,
             user: {
                 id: user._id,
                 username: user.username,
@@ -82,7 +83,7 @@ async function loginUser(req, res) {
         if (email) query.email = email;
         if (username) query.username = username;
 
-        const User = await userModel.findOne(query).select("+password orphanageId");
+        const User = await userModel.findOne(query).select("+password +orphanageId");
         if (!User) {
             return res.status(401).json({ message: "Invalid credentials" });
         }
@@ -93,7 +94,15 @@ async function loginUser(req, res) {
         }
 
         // For orphanAdmin users, check orphanage status before allowing login
-        if (User.role === 'orphanAdmin' && User.orphanageId) {
+        if (User.role === 'orphanAdmin') {
+            // Check if orphanageId exists
+            if (!User.orphanageId) {
+                return res.status(403).json({
+                    message: "No orphanage linked to this account. Please contact support.",
+                    status: 'error'
+                });
+            }
+            
             const orphanage = await Orphanage.findById(User.orphanageId);
             if (!orphanage) {
                 return res.status(404).json({ message: "Orphanage not found" });
@@ -126,8 +135,8 @@ async function loginUser(req, res) {
                 });
             }
 
-            // Only allow login if status is 'approved'
-            if (orphanage.status !== 'approved') {
+            // Only allow login if status is approved/active
+            if (!['approved', 'active'].includes(orphanage.status)) {
                 return res.status(403).json({
                     message: "Your orphanage is not approved for login.",
                     status: orphanage.status
@@ -163,6 +172,7 @@ async function loginUser(req, res) {
 
         return res.status(200).json({
             message: "User logged in successfully",
+            token,
             user: {
                 id: User._id,
                 username: User.username,

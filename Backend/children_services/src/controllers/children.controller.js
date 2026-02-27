@@ -3,17 +3,50 @@ const Child = require('../models/child.model');
 const { uploadBuffer, deleteFile } = require('../services/imagekit.service');
 
 // Helper: resolve orphanage id for the current user by checking token then auth service
+const normalizeOrphanageId = (value) => {
+    if (!value) return null;
+    if (typeof value === 'string') return value;
+    if (value._id) return value._id.toString();
+    if (value.id) return value.id.toString();
+    try {
+        return value.toString();
+    } catch (err) {
+        return null;
+    }
+};
+
+const isOrphanAdmin = (user) => {
+    if (!user) return false;
+    const role = (user.role || user.type || '').toString().trim().toLowerCase();
+    if (role === 'orphanadmin') return true;
+    // Token may omit role but still carry an orphanageId for orphan admins
+    if (user.orphanageId || user.orphanage) return true;
+    // Some tokens include permissions array
+    if (Array.isArray(user.permissions)) {
+        return user.permissions.some((perm) => perm.toString().toLowerCase().includes('orphan'));
+    }
+    return false;
+};
+
 const resolveOrphanageId = async (req) => {
     try {
         const authUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:3000/auth/orphanage';
         const headers = {};
-        if (req.headers && req.headers.cookie) headers['Cookie'] = req.headers.cookie;
+        if (req.headers?.cookie) headers['Cookie'] = req.headers.cookie;
+        if (req.headers?.authorization) headers['Authorization'] = req.headers.authorization;
         const resp = await axios.get(authUrl, { headers, withCredentials: true });
-        if (resp?.data?.orphanage?._id) return resp.data.orphanage._id;
+        const orphanageId = resp?.data?.orphanage?._id || resp?.data?.orphanage?.id;
+        if (orphanageId) return orphanageId.toString();
     } catch (e) {
         console.warn('Could not fetch orphanage from auth service:', e.message);
     }
     return null;
+};
+
+const getRequestOrphanageId = async (req) => {
+    const fromUser = normalizeOrphanageId(req.user?.orphanageId || req.user?.orphanage);
+    if (fromUser) return fromUser;
+    return await resolveOrphanageId(req);
 };
 const createChild = async (req, res) => {
     // track uploads so catch() can clean them up
@@ -22,9 +55,14 @@ const createChild = async (req, res) => {
     let createdChild = null;
 
     try {
+        // Debug logging
+        console.log('🔍 createChild - req.user:', JSON.stringify(req.user, null, 2));
+        
         // allow only orphanAdmin
         const role = req.user?.role || req.user?.type;
-        if (role !== 'orphanAdmin') {
+        console.log('🔍 createChild - extracted role:', role);
+        
+        if (!isOrphanAdmin(req.user)) {
             return res.status(403).json({ success: false, message: 'Forbidden - orphanAdmin only' });
         }
 
@@ -32,8 +70,11 @@ const createChild = async (req, res) => {
         payload.createdBy = req.user._id || req.user.id || req.user.userId;
 
         // orphanageId from logged-in user (preferred)
-        payload.orphanageId = req.user.orphanageId || req.user.orphanage || null;
-        if (!payload.orphanageId) payload.orphanageId = await resolveOrphanageId(req);
+        const orphanageId = await getRequestOrphanageId(req);
+        if (!orphanageId) {
+            return res.status(400).json({ success: false, message: 'Orphanage not linked with this admin' });
+        }
+        payload.orphanageId = orphanageId;
         if (!payload.orphanageId) {
             return res.status(400).json({ success: false, message: 'Orphanage not linked with this admin' });
         }
@@ -95,9 +136,8 @@ const getChildren = async (req, res) => {
     try {
         // If logged in as orphanAdmin -> return children of that orphanage
         const role = req.user?.role || req.user?.type;
-        if (role === 'orphanAdmin') {
-            let orphanageId = req.user.orphanageId || req.user.orphanage || null;
-            if (!orphanageId) orphanageId = await resolveOrphanageId(req);
+        if (isOrphanAdmin(req.user)) {
+            const orphanageId = await getRequestOrphanageId(req);
             if (!orphanageId) return res.status(400).json({ success: false, message: 'Orphanage not linked with this admin' });
 
             const children = await Child.find({ orphanageId }).limit(500);
@@ -125,7 +165,7 @@ const getChildren = async (req, res) => {
 const getChildrenByOrphanage = async (req, res) => {
     try {
         const role = req.user?.role || req.user?.type;
-        if (role === 'orphanAdmin') {
+        if (isOrphanAdmin(req.user)) {
             return res.status(403).json({ success: false, message: 'Forbidden - orphanAdmin cannot use this route' });
         }
 
@@ -156,12 +196,16 @@ const updateChild = async (req, res) => {
 
     try {
         /* ================= AUTH CHECK ================= */
+        console.log('🔍 updateChild - req.user:', JSON.stringify(req.user, null, 2));
+        
         if (!req.user) {
             return res.status(401).json({ success: false, message: 'Unauthorized' });
         }
 
-        const role = req.user.role || req.user.type;
-        if (role !== 'orphanAdmin') {
+        const role = req.user?.role || req.user?.type;
+        console.log('🔍 updateChild - extracted role:', role);
+        
+        if (!isOrphanAdmin(req.user)) {
             return res.status(403).json({ success: false, message: 'Forbidden - orphanAdmin only' });
         }
 
@@ -172,8 +216,10 @@ const updateChild = async (req, res) => {
         }
 
         /* ================= ORPHANAGE OWNERSHIP CHECK ================= */
-        let orphanageId = req.user.orphanageId || req.user.orphanage;
-        if (!orphanageId) orphanageId = await resolveOrphanageId(req);
+        const orphanageId = await getRequestOrphanageId(req);
+        if (!orphanageId) {
+            return res.status(403).json({ success: false, message: 'Forbidden - orphanage mismatch' });
+        }
 
         if (String(child.orphanageId) !== String(orphanageId)) {
             return res.status(403).json({ success: false, message: 'Forbidden - orphanage mismatch' });
@@ -215,9 +261,14 @@ const updateChild = async (req, res) => {
             child.profileFileId = imageResult.fileId || imageResult.file_id;
             newImageFileId = child.profileFileId;
 
-            // delete old image AFTER successful upload
+            // delete old image AFTER successful upload (best-effort, non-blocking)
             if (oldImageFileId) {
-                await deleteFile(oldImageFileId);
+                try {
+                    await deleteFile(oldImageFileId);
+                } catch (deleteErr) {
+                    // Log but don't fail the update - the new image is already uploaded
+                    console.warn('Failed to delete old profile image (non-fatal):', deleteErr.message || deleteErr);
+                }
             }
         }
 
@@ -280,8 +331,12 @@ const updateChild = async (req, res) => {
 
 const deleteChild = async (req, res) => {
     try {
+        console.log('🔍 deleteChild - req.user:', JSON.stringify(req.user, null, 2));
+        
         const role = req.user?.role || req.user?.type;
-        if (role !== "orphanAdmin") {
+        console.log('🔍 deleteChild - extracted role:', role);
+        
+        if (!isOrphanAdmin(req.user)) {
             return res.status(403).json({ success: false, message: "Forbidden - orphanAdmin only" });
         }
 
@@ -291,10 +346,7 @@ const deleteChild = async (req, res) => {
         console.log(child)
 
         // ensure admin belongs to same orphanage as the child
-        let orphanageId = req.user.orphanageId || req.user.orphanage || null;
-        // If orphanageId isn't present on token, fetch orphanage via auth service
-        if (!orphanageId) orphanageId = await resolveOrphanageId(req);
-
+        const orphanageId = await getRequestOrphanageId(req);
         if (!orphanageId || String(child.orphanageId) !== String(orphanageId)) {
             return res.status(403).json({ success: false, message: 'Forbidden - orphanage mismatch' });
         }
@@ -331,8 +383,12 @@ const deleteChild = async (req, res) => {
 // DELETE a specific uploaded file (profile image or document) from a child
 const deleteChildFile = async (req, res) => {
     try {
+        console.log('🔍 deleteChildFile - req.user:', JSON.stringify(req.user, null, 2));
+        
         const role = req.user?.role || req.user?.type;
-        if (role !== "orphanAdmin") {
+        console.log('🔍 deleteChildFile - extracted role:', role);
+        
+        if (!isOrphanAdmin(req.user)) {
             return res.status(403).json({ success: false, message: "Forbidden - orphanAdmin only" });
         }
 
@@ -341,6 +397,11 @@ const deleteChildFile = async (req, res) => {
 
         const child = await Child.findById(id);
         if (!child) return res.status(404).json({ error: 'Child not found' });
+
+        const orphanageId = await getRequestOrphanageId(req);
+        if (!orphanageId || String(child.orphanageId) !== String(orphanageId)) {
+            return res.status(403).json({ success: false, message: 'Forbidden - orphanage mismatch' });
+        }
 
         // If it's the profile image
         if (child.profileFileId && (child.profileFileId === fileId || child.profileFileId === fileId)) {

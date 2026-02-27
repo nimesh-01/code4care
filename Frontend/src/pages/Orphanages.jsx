@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { FaHeart, FaSearch, FaMapMarkerAlt, FaPhone, FaEnvelope, FaBuilding, FaFilter, FaChild, FaCheckCircle, FaClock } from 'react-icons/fa'
 import Navbar from '../components/Navbar'
 import { useTheme } from '../context/ThemeContext'
 import { orphanagesAPI } from '../services/api'
 
 const Orphanages = () => {
+  const navigate = useNavigate()
   const { isDarkMode } = useTheme()
   const [orphanages, setOrphanages] = useState([])
   const [loading, setLoading] = useState(true)
@@ -190,7 +192,7 @@ const Orphanages = () => {
               </div>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredOrphanages.map((orphanage) => (
-                  <OrphanageCard key={orphanage._id} orphanage={orphanage} />
+                  <OrphanageCard key={orphanage._id} orphanage={orphanage} onClick={() => navigate(`/orphanages/${orphanage._id}`)} />
                 ))}
               </div>
             </>
@@ -232,7 +234,7 @@ const Orphanages = () => {
   )
 }
 
-const OrphanageCard = ({ orphanage }) => {
+const OrphanageCard = ({ orphanage, onClick }) => {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'approved':
@@ -296,10 +298,10 @@ const OrphanageCard = ({ orphanage }) => {
         </div>
 
         <div className="mt-6 flex gap-3">
-          <button className="flex-1 py-2 bg-coral-500 text-white rounded-lg font-medium hover:bg-coral-600 transition-colors">
+          <button onClick={(e) => { e.stopPropagation(); window.location.href = '/donate'; }} className="flex-1 py-2 bg-coral-500 text-white rounded-lg font-medium hover:bg-coral-600 transition-colors">
             Donate
           </button>
-          <button className="flex-1 py-2 bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 rounded-lg font-medium hover:bg-teal-100 dark:hover:bg-teal-900/40 transition-colors">
+          <button onClick={onClick} className="flex-1 py-2 bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 rounded-lg font-medium hover:bg-teal-100 dark:hover:bg-teal-900/40 transition-colors">
             View Details
           </button>
         </div>

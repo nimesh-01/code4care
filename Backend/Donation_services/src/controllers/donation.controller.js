@@ -5,6 +5,56 @@ const validators = require('../utils/validators');
 const receiptGenerator = require('../utils/receiptGenerator');
 const path = require('path');
 const fs = require('fs');
+const archiver = require('archiver');
+const { Parser } = require('json2csv');
+
+const assertOrphanageAccess = (user, orphanageId) => {
+    if (user.role === 'orphanAdmin') {
+        return Boolean(user.orphanageId && user.orphanageId.toString() === orphanageId);
+    }
+
+    return user.role === 'superAdmin';
+};
+
+const ensureReceiptForDonation = async (donation) => {
+    if (donation.status !== 'success') return null;
+
+    const donationId = donation._id.toString();
+    let shouldSave = false;
+
+    if (!donation.receiptNumber) {
+        donation.receiptNumber = receiptGenerator.generateReceiptNumber(donationId);
+        shouldSave = true;
+    }
+
+    if (!donation.receiptUrl) {
+        donation.receiptUrl = `/donation/${donationId}/receipt`;
+        shouldSave = true;
+    }
+
+    if (!receiptGenerator.receiptExists(donationId)) {
+        await receiptGenerator.generateReceipt({
+            donationId,
+            receiptNumber: donation.receiptNumber,
+            donorName: donation.donorDetails?.name || 'Anonymous Supporter',
+            donorEmail: donation.donorDetails?.email || 'Not provided',
+            orphanageName: donation.orphanageName || donation.orphanageId.toString(),
+            amount: donation.amount,
+            purpose: donation.purpose,
+            transactionId: donation.payment?.paymentId || donation.payment?.orderId || 'N/A',
+            donationDate: donation.createdAt
+        });
+    }
+
+    if (shouldSave) {
+        await donation.save();
+    }
+
+    return {
+        path: receiptGenerator.getReceiptPath(donationId),
+        name: `${donation.receiptNumber || donationId}.pdf`
+    };
+};
 
 /**
  * @desc    Initialize a donation and create Razorpay order
@@ -331,6 +381,136 @@ const getOrphanageDonations = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Download ZIP containing all receipts for an orphanage
+ * @route   GET /donation/orphanage/:orphanageId/receipts
+ * @access  Protected (OrphanAdmin of that orphanage or SuperAdmin)
+ */
+const downloadOrphanageReceipts = asyncHandler(async (req, res) => {
+    const { orphanageId } = req.params;
+    const { startDate, endDate } = req.query;
+
+    if (!validators.isValidObjectId(orphanageId)) {
+        res.status(400);
+        throw new Error('Invalid Orphanage ID format');
+    }
+
+    if (!assertOrphanageAccess(req.user, orphanageId)) {
+        res.status(403);
+        throw new Error('Not authorized to download receipts for this orphanage');
+    }
+
+    const query = { orphanageId, status: 'success' };
+    if (startDate || endDate) {
+        query.createdAt = {};
+        if (startDate) query.createdAt.$gte = new Date(startDate);
+        if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+
+    const donations = await Donation.find(query).sort({ createdAt: -1 });
+
+    if (!donations.length) {
+        res.status(404);
+        throw new Error('No successful donations found for this orphanage');
+    }
+
+    const receiptEntries = [];
+    for (const donation of donations) {
+        const receiptInfo = await ensureReceiptForDonation(donation);
+        if (receiptInfo) receiptEntries.push({ ...receiptInfo, donation });
+    }
+
+    if (!receiptEntries.length) {
+        res.status(400);
+        throw new Error('No receipts available to download for the selected criteria');
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="soulconnect-receipts-${timestamp}.zip"`);
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+
+    await new Promise((resolve, reject) => {
+        archive.on('error', reject);
+        res.on('finish', resolve);
+        archive.pipe(res);
+        receiptEntries.forEach((entry) => {
+            archive.file(entry.path, { name: `${entry.name}` });
+        });
+        archive.finalize().catch(reject);
+    });
+});
+
+/**
+ * @desc    Export orphanage donations as CSV report
+ * @route   GET /donation/orphanage/:orphanageId/export
+ * @access  Protected (OrphanAdmin of that orphanage or SuperAdmin)
+ */
+const exportOrphanageDonations = asyncHandler(async (req, res) => {
+    const { orphanageId } = req.params;
+    const { status, purpose, startDate, endDate } = req.query;
+
+    if (!validators.isValidObjectId(orphanageId)) {
+        res.status(400);
+        throw new Error('Invalid Orphanage ID format');
+    }
+
+    if (!assertOrphanageAccess(req.user, orphanageId)) {
+        res.status(403);
+        throw new Error('Not authorized to export donations for this orphanage');
+    }
+
+    const query = { orphanageId };
+    if (status && status !== 'all') query.status = status;
+    if (purpose && purpose !== 'all') query.purpose = purpose;
+    if (startDate || endDate) {
+        query.createdAt = {};
+        if (startDate) query.createdAt.$gte = new Date(startDate);
+        if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+
+    const donations = await Donation.find(query).sort({ createdAt: -1 });
+
+    const rows = donations.map((donation) => ({
+        receiptNumber: donation.receiptNumber || '',
+        donorName: donation.donorDetails?.name || 'Anonymous Supporter',
+        donorEmail: donation.donorDetails?.email || '',
+        amount: donation.amount,
+        purpose: donation.purpose,
+        status: donation.status,
+        childId: donation.childId ? donation.childId.toString() : '',
+        gateway: donation.gateway,
+        transactionId: donation.payment?.paymentId || donation.payment?.orderId || '',
+        orphanageId: donation.orphanageId?.toString() || orphanageId,
+        createdAt: donation.createdAt ? donation.createdAt.toISOString() : '',
+        updatedAt: donation.updatedAt ? donation.updatedAt.toISOString() : ''
+    }));
+
+    const fields = [
+        { label: 'Receipt Number', value: 'receiptNumber' },
+        { label: 'Donor Name', value: 'donorName' },
+        { label: 'Donor Email', value: 'donorEmail' },
+        { label: 'Amount (INR)', value: 'amount' },
+        { label: 'Purpose', value: 'purpose' },
+        { label: 'Status', value: 'status' },
+        { label: 'Child ID', value: 'childId' },
+        { label: 'Gateway', value: 'gateway' },
+        { label: 'Transaction ID', value: 'transactionId' },
+        { label: 'Orphanage ID', value: 'orphanageId' },
+        { label: 'Created At', value: 'createdAt' },
+        { label: 'Updated At', value: 'updatedAt' }
+    ];
+
+    const parser = new Parser({ fields });
+    const csv = parser.parse(rows);
+
+    const timestamp = new Date().toISOString().split('T')[0];
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="soulconnect-donations-${timestamp}.csv"`);
+    res.status(200).send(csv);
+});
+
+/**
  * @desc    Get single donation by ID
  * @route   GET /donation/:id
  * @access  Protected (Donor, OrphanAdmin, or SuperAdmin)
@@ -583,8 +763,13 @@ const downloadReceipt = asyncHandler(async (req, res) => {
         throw new Error('Donation not found');
     }
 
-    // Check authorization - only donor can download their receipt
-    if (donation.donorId.toString() !== req.user.id) {
+    const isOwner = donation.donorId.toString() === req.user.id;
+    const isOrphanAdmin = req.user.role === 'orphanAdmin' &&
+        req.user.orphanageId &&
+        donation.orphanageId.toString() === req.user.orphanageId.toString();
+    const isSuperAdmin = req.user.role === 'superAdmin';
+
+    if (!isOwner && !isOrphanAdmin && !isSuperAdmin) {
         res.status(403);
         throw new Error('Not authorized to download this receipt');
     }
@@ -595,33 +780,8 @@ const downloadReceipt = asyncHandler(async (req, res) => {
         throw new Error(`No receipt available for donation with status: ${donation.status}`);
     }
 
-    // Get receipt path
-    const receiptPath = receiptGenerator.getReceiptPath(id);
-
-    // Check if receipt file exists
-    if (!fs.existsSync(receiptPath)) {
-        // Try to regenerate the receipt if it doesn't exist
-        const receiptNumber = donation.receiptNumber || receiptGenerator.generateReceiptNumber(id);
-        
-        await receiptGenerator.generateReceipt({
-            donationId: id,
-            receiptNumber,
-            donorName: req.user.name,
-            donorEmail: req.user.email,
-            orphanageName: donation.orphanageId.toString(),
-            amount: donation.amount,
-            purpose: donation.purpose,
-            transactionId: donation.payment.paymentId,
-            donationDate: donation.createdAt
-        });
-
-        // Update donation if needed
-        if (!donation.receiptNumber) {
-            donation.receiptNumber = receiptNumber;
-            donation.receiptUrl = `/donation/${id}/receipt`;
-            await donation.save();
-        }
-    }
+    const receiptInfo = await ensureReceiptForDonation(donation);
+    const receiptPath = receiptInfo?.path || receiptGenerator.getReceiptPath(id);
 
     // Set response headers for PDF download
     const fileName = `SoulConnect_Receipt_${donation.receiptNumber || id}.pdf`;
@@ -639,6 +799,8 @@ module.exports = {
     verifyDonation,
     getUserDonations,
     getOrphanageDonations,
+    downloadOrphanageReceipts,
+    exportOrphanageDonations,
     getDonationById,
     refundDonation,
     getAllDonations,

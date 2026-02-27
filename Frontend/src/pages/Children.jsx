@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { FaHeart, FaSearch, FaMapMarkerAlt, FaGraduationCap, FaHeartbeat, FaChild, FaFilter } from 'react-icons/fa'
 import Navbar from '../components/Navbar'
 import { useTheme } from '../context/ThemeContext'
 import { childrenAPI } from '../services/api'
 
 const Children = () => {
+  const navigate = useNavigate()
   const { isDarkMode } = useTheme()
   const [children, setChildren] = useState([])
   const [loading, setLoading] = useState(true)
@@ -207,7 +209,7 @@ const Children = () => {
               </div>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredChildren.map((child) => (
-                  <ChildCard key={child._id} child={child} />
+                  <ChildCard key={child._id} child={child} onClick={() => navigate(`/children/${child._id}`)} />
                 ))}
               </div>
             </>
@@ -257,18 +259,23 @@ const Children = () => {
   )
 }
 
-const ChildCard = ({ child }) => {
-  const defaultImage = 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=300&h=300&fit=crop'
-
+const ChildCard = ({ child, onClick }) => {
   return (
-    <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group">
+    <div onClick={onClick} className="cursor-pointer bg-white dark:bg-dark-800 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group">
       {/* Image */}
       <div className="relative h-48 overflow-hidden">
-        <img
-          src={child.profileUrl || defaultImage}
-          alt={child.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-        />
+        {child.profileUrl ? (
+          <img
+            src={child.profileUrl}
+            alt={child.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-cream-100 to-cream-200 dark:from-dark-700 dark:to-dark-600 group-hover:scale-105 transition-transform duration-300">
+            <FaChild className="text-5xl text-teal-300 dark:text-teal-600 mb-1" />
+            <span className="text-xs text-teal-400 dark:text-teal-500 font-medium">No photo</span>
+          </div>
+        )}
         <div className="absolute top-3 right-3">
           <span className={`px-3 py-1 rounded-full text-xs font-medium ${
             child.status === 'active'
@@ -318,7 +325,10 @@ const ChildCard = ({ child }) => {
           </p>
         )}
 
-        <button className="w-full mt-4 py-2 bg-coral-50 dark:bg-coral-900/20 text-coral-600 dark:text-coral-400 rounded-lg font-medium hover:bg-coral-100 dark:hover:bg-coral-900/40 transition-colors">
+        <button
+          onClick={onClick}
+          className="w-full mt-4 py-2 bg-coral-50 dark:bg-coral-900/20 text-coral-600 dark:text-coral-400 rounded-lg font-medium hover:bg-coral-100 dark:hover:bg-coral-900/40 transition-colors"
+        >
           View Profile
         </button>
       </div>

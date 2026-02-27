@@ -14,7 +14,7 @@ router.post('/children', authMiddleware, upload.fields([{ name: 'image', maxCoun
 //  GET /api/children
 router.get('/children', optionalAuthMiddleware, controller.getChildren);
 
-//GET /api/children/:id
+//GET /api/children/:id (requires login)
 router.get('/children/:id', authMiddleware, controller.getChildById);
 
 //DELETE /api/children/:id
@@ -24,9 +24,9 @@ router.delete('/children/:id', authMiddleware, controller.deleteChild);
 router.delete('/children/:id/files/:fileId', authMiddleware, controller.deleteChildFile);
 
 //PUT /api/children/:id
-router.put('/children/:id', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'documents', maxCount: 10 }]), authMiddleware, controller.updateChild);
+router.put('/children/:id', authMiddleware, upload.fields([{ name: 'image', maxCount: 1 }, { name: 'documents', maxCount: 10 }]), controller.updateChild);
 
-// GET /api/orphanage/:orphanageId list children by orphanage
+// GET /api/orphanage/:orphanageId list children by orphanage (requires login)
 router.get('/orphanage/:orphanageId', authMiddleware, controller.getChildrenByOrphanage);
 
 module.exports = router;

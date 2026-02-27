@@ -7,6 +7,8 @@ const sendNotification = ({ to, subject, message }) => {
     console.log('Notify', to, subject, message);
 };
 
+const normalizeRole = (role) => (role || '').toLowerCase();
+
 // Helper function to get user details from auth service
 const getUserDetails = async (userId, req) => {
     try {
@@ -112,11 +114,38 @@ const getAllAppointments = async (req, res) => {
     const filter = {};
     if (status) filter.status = status;
 
-    if (role === 'User' || role === 'Volunteer') {
+    const normalizedRole = normalizeRole(role);
+
+    if (['user', 'volunteer'].includes(normalizedRole)) {
         filter.requesterId = userId;
-    } else if (role === 'OrphanageAdmin') {
+    } else if (normalizedRole === 'orphanadmin' && orphanageId) {
         filter.orphanageId = orphanageId;
     }
+
+    try {
+        const appts = await Appointment.find(filter).sort({ [sort]: order === 'asc' ? 1 : -1 });
+        res.json({ appointments: appts });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch appointments' });
+    }
+};
+
+const getAppointmentsByOrphanage = async (req, res) => {
+    const { orphanageId } = req.params;
+    const { role, orphanageId: userOrphanageId } = req.user || {};
+    const { status, sort = 'requestedAt', order = 'asc' } = req.query;
+
+    if (!orphanageId) {
+        return res.status(400).json({ error: 'orphanageId is required' });
+    }
+
+    const normalizedRole = normalizeRole(role);
+    if (normalizedRole === 'orphanadmin' && userOrphanageId && String(userOrphanageId) !== String(orphanageId)) {
+        return res.status(403).json({ error: 'Not allowed for this orphanage' });
+    }
+
+    const filter = { orphanageId };
+    if (status) filter.status = status;
 
     try {
         const appts = await Appointment.find(filter).sort({ [sort]: order === 'asc' ? 1 : -1 });
@@ -243,6 +272,7 @@ const cancelAppointment = async (req, res) => {
 module.exports = {
     requestAppointment,
     getAllAppointments,
+    getAppointmentsByOrphanage,
     approveAppointment,
     rejectAppointment,
     cancelAppointment,

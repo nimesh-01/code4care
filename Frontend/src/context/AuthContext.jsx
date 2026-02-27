@@ -16,24 +16,44 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    checkAuth()
+    checkAuth(true) // Initial load
+
+    // Handle browser back/forward cache (bfcache) - re-check auth when page is restored
+    const handlePageShow = (event) => {
+      if (event.persisted) {
+        // Page was restored from bfcache, re-validate auth state
+        checkAuth(false)
+      }
+    }
+
+    window.addEventListener('pageshow', handlePageShow)
+    return () => window.removeEventListener('pageshow', handlePageShow)
   }, [])
 
-  const checkAuth = async () => {
+  const checkAuth = async (isInitialLoad = false) => {
     try {
+      // Only set loading to true on initial load to prevent flicker on navigation
+      if (isInitialLoad) {
+        setLoading(true)
+      }
       const response = await authAPI.getCurrentUser()
       setUser(response.data.user)
     } catch (error) {
       console.error('Auth check failed:', error)
       setUser(null)
     } finally {
-      setLoading(false)
+      if (isInitialLoad) {
+        setLoading(false)
+      }
     }
   }
 
   const login = async (credentials) => {
     const response = await authAPI.login(credentials)
-    const userData = response.data.user
+    const { user: userData, token } = response.data
+    if (token) {
+      localStorage.setItem('token', token)
+    }
     setUser(userData)
     return userData
   }
@@ -54,7 +74,10 @@ export const AuthProvider = ({ children }) => {
       }
     } else {
       response = await authAPI.register(userData)
-      const newUser = response.data.user
+      const { user: newUser, token } = response.data
+      if (token) {
+        localStorage.setItem('token', token)
+      }
       setUser(newUser)
       return { user: newUser, isPending: false }
     }
@@ -66,6 +89,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Logout failed:', error)
     } finally {
+      localStorage.removeItem('token')
       setUser(null)
     }
   }

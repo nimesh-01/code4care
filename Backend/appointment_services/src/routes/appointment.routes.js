@@ -18,6 +18,9 @@ router.post('/request',
 //GET /appointment/all
 router.get('/all', authMiddleware, permit('user', 'volunteer', 'orphanAdmin', 'superAdmin'), controller.getAllAppointments);
 
+//GET /appointment/orphanage/:orphanageId
+router.get('/orphanage/:orphanageId', authMiddleware, permit('orphanAdmin', 'superAdmin'), controller.getAppointmentsByOrphanage);
+
 //PUT /appointment/:id/approve
 router.put('/:id/approve', authMiddleware, permit('orphanAdmin'), controller.approveAppointment);
 

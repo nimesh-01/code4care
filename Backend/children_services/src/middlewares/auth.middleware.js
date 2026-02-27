@@ -28,6 +28,8 @@ async function authMiddleware(req, res, next) {
     // ✅ Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+    console.log('🔍 authMiddleware - decoded token:', JSON.stringify(decoded, null, 2));
+    
     req.user = decoded; // attach user payload
     next();
   } catch (error) {
@@ -45,13 +47,18 @@ async function optionalAuthMiddleware(req, res, next) {
     if (req.cookies && req.cookies.token) token = req.cookies.token;
     else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) token = req.headers.authorization.split(' ')[1];
 
-    if (!token) return next();
+    if (!token) {
+      req.user = null;
+      return next();
+    }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
     return next();
   } catch (error) {
-    return res.status(401).json({ success: false, message: 'Unauthorized: Invalid or expired token' });
+    // Invalid token - just continue without user (don't fail for public routes)
+    req.user = null;
+    return next();
   }
 }
 

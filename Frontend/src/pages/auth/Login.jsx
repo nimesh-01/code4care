@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { FaHeart, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaSun, FaMoon, FaClock, FaBan, FaTimesCircle } from 'react-icons/fa'
+import { FaHeart, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaSun, FaMoon, FaClock, FaBan, FaTimesCircle, FaInfoCircle } from 'react-icons/fa'
 import { toast } from 'react-toastify'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
@@ -13,9 +13,19 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [statusInfo, setStatusInfo] = useState(null)
+  const [redirectMessage, setRedirectMessage] = useState(null)
   const { login } = useAuth()
   const { isDarkMode, toggleTheme } = useTheme()
   const navigate = useNavigate()
+
+  // Check for redirect message on mount
+  useEffect(() => {
+    const message = sessionStorage.getItem('loginRedirectMessage')
+    if (message) {
+      setRedirectMessage(message)
+      sessionStorage.removeItem('loginRedirectMessage')
+    }
+  }, [])
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -42,14 +52,21 @@ const Login = () => {
       const user = await login(credentials)
       toast.success(`Welcome back, ${user.fullname || user.username || 'User'}!`)
       
-      // Redirect based on role from backend
-      const dashboardRoutes = {
-        user: '/dashboard/user',
-        volunteer: '/dashboard/volunteer',
-        orphanAdmin: '/dashboard/admin',
-        superAdmin: '/dashboard/superadmin'
+      // Check if there's an intended redirect URL (user was redirected here from a protected page)
+      const intendedUrl = sessionStorage.getItem('loginRedirectUrl')
+      if (intendedUrl) {
+        sessionStorage.removeItem('loginRedirectUrl')
+        navigate(intendedUrl)
+        return
       }
-      navigate(dashboardRoutes[user.role] || '/dashboard/user')
+      
+      // Redirect orphanage admins to their dashboard, others to home
+      if (user.role === 'orphanAdmin') {
+        navigate('/dashboard/admin')
+        return
+      }
+
+      navigate('/')
     } catch (error) {
       const errorData = error.response?.data
       
@@ -120,6 +137,16 @@ const Login = () => {
         {/* Login Card */}
         <div className="bg-white dark:bg-dark-800 rounded-2xl p-8 shadow-2xl transition-colors duration-300">
           <h2 className="text-2xl font-playfair font-bold text-teal-900 dark:text-cream-50 mb-6 text-center">Login</h2>
+
+          {/* Redirect Message */}
+          {redirectMessage && (
+            <div className="mb-6 p-4 rounded-xl border-2 bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800">
+              <div className="flex items-center gap-3">
+                <FaInfoCircle className="text-xl text-teal-500 flex-shrink-0" />
+                <p className="text-sm text-teal-700 dark:text-teal-300">{redirectMessage}</p>
+              </div>
+            </div>
+          )}
 
           {/* Status Info Display */}
           {statusInfo && (
