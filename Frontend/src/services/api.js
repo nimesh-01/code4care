@@ -163,13 +163,15 @@ export const appointmentAPI = {
   // Admin
   getAll: () => appointmentApi.get('/all'),
   getByOrphanage: (orphanageId, params = {}) => appointmentApi.get(`/orphanage/${orphanageId}`, { params }),
-  approve: (id) => appointmentApi.put(`/${id}/approve`),
-  reject: (id) => appointmentApi.put(`/${id}/reject`),
+  approve: (id, data = {}) => appointmentApi.put(`/${id}/approve`, data),
+  reject: (id, data = {}) => appointmentApi.put(`/${id}/reject`, data),
+  block: (id, data = {}) => appointmentApi.put(`/${id}/block`, data),
+  sendReminders: () => appointmentApi.post('/send-reminders'),
 }
 
 // Help Request API (Help Service - port 3003)
 const helpApi = axios.create({
-  baseURL: import.meta.env.VITE_HELP_API_URL || 'http://localhost:3003/help',
+  baseURL: import.meta.env.VITE_HELP_API_URL || '/api/help',
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 })

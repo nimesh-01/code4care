@@ -23,10 +23,12 @@ const extractArray = (payload) => {
   if (Array.isArray(payload.data)) return payload.data
   if (Array.isArray(payload.children)) return payload.children
   if (Array.isArray(payload.appointments)) return payload.appointments
+  if (Array.isArray(payload.helpRequests)) return payload.helpRequests
   if (Array.isArray(payload.results)) return payload.results
   if (Array.isArray(payload.items)) return payload.items
   if (Array.isArray(payload?.data?.children)) return payload.data.children
   if (Array.isArray(payload?.data?.appointments)) return payload.data.appointments
+  if (Array.isArray(payload?.data?.helpRequests)) return payload.data.helpRequests
   if (Array.isArray(payload?.data?.results)) return payload.data.results
   if (Array.isArray(payload?.data?.items)) return payload.data.items
   return null

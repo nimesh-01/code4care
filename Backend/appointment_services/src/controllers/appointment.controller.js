@@ -269,11 +269,92 @@ const cancelAppointment = async (req, res) => {
     }
 };
 
+const blockAppointment = async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const orphanageId = await resolveOrphanageId(req);
+        const appt = await Appointment.findById(id);
+        if (!appt) return res.status(404).json({ error: 'Appointment not found' });
+        if (String(appt.orphanageId) !== String(orphanageId)) return res.status(403).json({ error: 'Not allowed for this orphanage' });
+
+        appt.status = 'blocked';
+        if (req.body.adminResponse) appt.adminResponse = req.body.adminResponse;
+        await appt.save();
+
+        // Get user and orphanage details for email notification
+        const [requesterDetails, orphanageDetails] = await Promise.all([
+            getUserDetails(appt.requesterId, req),
+            getOrphanageDetails(appt.orphanageId, req)
+        ]);
+
+        // Send email notification to the requester
+        if (requesterDetails?.email) {
+            await publishToQueue('APPOINTMENT_NOTIFICATION.BLOCKED', {
+                requesterEmail: requesterDetails.email,
+                requesterName: `${requesterDetails.fullname?.firstname || ''} ${requesterDetails.fullname?.lastname || ''}`.trim(),
+                orphanageName: orphanageDetails?.name || 'the orphanage',
+                requestedAt: appt.requestedAt,
+                purpose: appt.purpose,
+                adminResponse: appt.adminResponse
+            });
+        }
+
+        sendNotification({ to: `user:${appt.requesterId}`, subject: 'Appointment blocked', message: `Your appointment was blocked: ${appt.adminResponse || 'No reason provided'}` });
+
+        res.json({ message: 'Appointment blocked', appointment: appt });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to block appointment' });
+    }
+};
+
+const sendReminders = async (req, res) => {
+    try {
+        const orphanageId = await resolveOrphanageId(req);
+        if (!orphanageId) return res.status(400).json({ error: 'Could not resolve orphanage' });
+
+        // Find all approved appointments in the future (upcoming)
+        const now = new Date();
+        const upcomingApproved = await Appointment.find({
+            orphanageId,
+            status: 'approved',
+            requestedAt: { $gte: now },
+        });
+
+        if (!upcomingApproved.length) {
+            return res.json({ message: 'No upcoming approved appointments to remind.', sent: 0 });
+        }
+
+        const orphanageDetails = await getOrphanageDetails(orphanageId, req);
+        let sentCount = 0;
+
+        for (const appt of upcomingApproved) {
+            const requesterDetails = await getUserDetails(appt.requesterId, req);
+            if (requesterDetails?.email) {
+                await publishToQueue('APPOINTMENT_NOTIFICATION.REMINDER', {
+                    requesterEmail: requesterDetails.email,
+                    requesterName: `${requesterDetails.fullname?.firstname || ''} ${requesterDetails.fullname?.lastname || ''}`.trim(),
+                    orphanageName: orphanageDetails?.name || 'the orphanage',
+                    requestedAt: appt.requestedAt,
+                    purpose: appt.purpose,
+                });
+                sentCount++;
+            }
+        }
+
+        res.json({ message: `Reminders sent for ${sentCount} upcoming appointment(s).`, sent: sentCount });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to send reminders' });
+    }
+};
+
 module.exports = {
     requestAppointment,
     getAllAppointments,
     getAppointmentsByOrphanage,
     approveAppointment,
     rejectAppointment,
+    blockAppointment,
+    sendReminders,
     cancelAppointment,
 };

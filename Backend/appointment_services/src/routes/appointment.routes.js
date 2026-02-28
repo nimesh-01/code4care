@@ -27,6 +27,12 @@ router.put('/:id/approve', authMiddleware, permit('orphanAdmin'), controller.app
 //PUT /appointment/:id/reject
 router.put('/:id/reject', authMiddleware, permit('orphanAdmin'), controller.rejectAppointment);
 
+//PUT /appointment/:id/block
+router.put('/:id/block', authMiddleware, permit('orphanAdmin'), controller.blockAppointment);
+
+//POST /appointment/send-reminders
+router.post('/send-reminders', authMiddleware, permit('orphanAdmin'), controller.sendReminders);
+
 //delete /appointment/:id/cancel
 router.delete('/:id/cancel', authMiddleware, permit('user', 'volunteer'), controller.cancelAppointment);
     
