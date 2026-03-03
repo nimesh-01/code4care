@@ -97,6 +97,7 @@ export const authAPI = {
     })
   },
   deleteOrphanageDocument: (field, fileId) => api.delete('/auth/orphanage/document', { data: { field, fileId } }),
+  getUserById: (id) => api.get(`/auth/user/${id}`),
 }
 
 // Orphanages API (from auth service)
@@ -167,6 +168,8 @@ export const appointmentAPI = {
   // User/Volunteer
   request: (data) => appointmentApi.post('/request', data),
   cancel: (id) => appointmentApi.delete(`/${id}/cancel`),
+  cancelByAdmin: (id, data = {}) => appointmentApi.put(`/${id}/cancel`, data),
+  confirm: (id, data = {}) => appointmentApi.post(`/${id}/confirm`, data),
   // Admin
   getAll: () => appointmentApi.get('/all'),
   getByOrphanage: (orphanageId, params = {}) => appointmentApi.get(`/orphanage/${orphanageId}`, { params }),

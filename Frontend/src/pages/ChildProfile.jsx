@@ -5,7 +5,9 @@ import {
   FaArrowLeft, FaBuilding, FaCalendarAlt, FaVenusMars, FaFileAlt,
   FaHandHoldingHeart, FaUserFriends
 } from 'react-icons/fa'
+import { toast } from 'react-toastify'
 import Navbar from '../components/Navbar'
+import AppointmentRequestModal from '../components/AppointmentRequestModal'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 import { childrenAPI } from '../services/api'
@@ -19,6 +21,58 @@ const ChildProfile = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [imageLoaded, setImageLoaded] = useState(false)
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false)
+
+  const normalizeId = (value) => {
+    if (!value) return null
+    if (typeof value === 'string') return value
+    if (typeof value === 'object') {
+      return value._id || value.id || value.value || null
+    }
+    return null
+  }
+
+  const buildAppointmentContext = () => {
+    if (!child) return null
+    const orphanageIdentifier = normalizeId(child.orphanageId)
+    if (!orphanageIdentifier) return null
+    return {
+      type: 'child',
+      childId: child._id || child.id,
+      childName: child.name,
+      orphanageId: orphanageIdentifier,
+      orphanageName: child.orphanageName,
+      location: [child.city, child.state].filter(Boolean).join(', '),
+    }
+  }
+
+  const handleAppointmentClick = () => {
+    const context = buildAppointmentContext()
+    if (!context) {
+      toast.error('Unable to find orphanage information for this child')
+      return
+    }
+
+    if (!user) {
+      sessionStorage.setItem('loginRedirectUrl', window.location.pathname)
+      toast.info('Please login to request an appointment')
+      navigate('/login')
+      return
+    }
+
+    const normalizedRole = (user.role || '').toLowerCase()
+    if (!['user', 'volunteer'].includes(normalizedRole)) {
+      toast.warn('Only users and volunteers can request appointments')
+      return
+    }
+
+    setShowAppointmentModal(true)
+  }
+
+  const handleAppointmentSuccess = () => {
+    setShowAppointmentModal(false)
+    navigate('/appointments')
+  }
 
   useEffect(() => {
     fetchChild()
@@ -198,21 +252,47 @@ const ChildProfile = () => {
                     </div>
                   </div>
 
-                  {/* Sponsor CTA Card - Hidden for orphanage admins */}
+                  {/* Sponsor / Appointment CTA - Hidden for orphanage admins */}
                   {user?.role !== 'orphanAdmin' && (
-                    <div className="mt-6 bg-gradient-to-br from-coral-500 to-coral-600 dark:from-coral-700 dark:to-coral-800 rounded-2xl p-6 text-white shadow-lg">
-                      <FaHandHoldingHeart className="text-3xl mb-3 text-white/80" />
-                      <h3 className="text-lg font-bold mb-2">Support {child.name}</h3>
-                      <p className="text-sm text-white/80 mb-4">
-                        Your contribution can help provide education, healthcare, and a brighter future.
-                      </p>
-                      <Link
-                        to="/donate"
-                        className="inline-block w-full text-center py-3 bg-white text-coral-600 font-semibold rounded-xl hover:bg-cream-50 transition-colors shadow"
-                      >
-                        Donate Now
-                      </Link>
-                    </div>
+                    <>
+                      <div className="mt-6 bg-gradient-to-br from-coral-500 to-coral-600 dark:from-coral-700 dark:to-coral-800 rounded-2xl p-6 text-white shadow-lg">
+                        <FaHandHoldingHeart className="text-3xl mb-3 text-white/80" />
+                        <h3 className="text-lg font-bold mb-2">Support {child.name}</h3>
+                        <p className="text-sm text-white/80 mb-4">
+                          Your contribution can help provide education, healthcare, and a brighter future.
+                        </p>
+                        <Link
+                          to="/donate"
+                          className="inline-block w-full text-center py-3 bg-white text-coral-600 font-semibold rounded-xl hover:bg-cream-50 transition-colors shadow"
+                        >
+                          Donate Now
+                        </Link>
+                      </div>
+
+                      <div className="mt-6 rounded-2xl border border-cream-200 bg-white p-6 shadow-sm dark:border-dark-700 dark:bg-dark-800">
+                        <div className="mb-3 flex items-center gap-3">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-900/20">
+                            <FaCalendarAlt className="text-xl text-teal-500" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-bold text-teal-900 dark:text-cream-50">Schedule a Visit</h3>
+                            <p className="text-sm text-teal-500 dark:text-cream-300">Meet {child.name} with the orphanage team</p>
+                          </div>
+                        </div>
+                        <p className="text-sm text-teal-600 dark:text-cream-300">
+                          Share your preferred date and reason, and the orphanage admin will respond with a confirmation.
+                        </p>
+                        <button
+                          onClick={handleAppointmentClick}
+                          className="mt-4 w-full rounded-xl bg-teal-600 py-3 text-white font-semibold hover:bg-teal-700 transition"
+                        >
+                          Request Appointment
+                        </button>
+                        <p className="mt-2 text-xs text-teal-400 dark:text-cream-400">
+                          Appointments may be rescheduled based on orphanage availability.
+                        </p>
+                      </div>
+                    </>
                   )}
                 </div>
 
@@ -364,6 +444,14 @@ const ChildProfile = () => {
           </footer>
         </>
       )}
+
+          <AppointmentRequestModal
+            isOpen={showAppointmentModal}
+            onClose={() => setShowAppointmentModal(false)}
+            context={buildAppointmentContext()}
+            defaultPurpose={child ? `I would love to spend time with ${child.name} and learn more about their needs.` : ''}
+            onSuccess={handleAppointmentSuccess}
+          />
     </div>
   )
 }

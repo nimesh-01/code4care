@@ -14,6 +14,10 @@ const AppointmentSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         required: true
     },
+    childId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Child'
+    },
     requestedAt: {
         type: Date,
         required: true
@@ -24,12 +28,22 @@ const AppointmentSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['pending', 'approved', 'rejected', 'cancelled', 'blocked'],
+        enum: ['pending', 'approved', 'rejected', 'cancelled', 'blocked', 'needsConfirmation'],
         default: 'pending'
     },
     adminResponse: {
         type: String
     },
+    needsUserConfirmation: {
+        type: Boolean,
+        default: false
+    },
+    userConfirmedAt: {
+        type: Date
+    },
+    userConfirmationNote: {
+        type: String
+    }
 }, { timestamps: true });
 
 const Appointment = mongoose.model('Appointment', AppointmentSchema);

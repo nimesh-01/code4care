@@ -54,32 +54,57 @@ const requestAppointment = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-    const { requestedAt, purpose, orphanageId } = req.body;
+    const { requestedAt, purpose, orphanageId, childId } = req.body;
     const { id, role } = req.user;
     try {
-        let response = await Appointment.findOne({
+        const baseFilter = {
             requesterId: id,
             orphanageId: orphanageId,
-            status: { $ne: "cancelled" }
+        };
+
+        if (childId) {
+            baseFilter.childId = childId;
+        }
+
+        const blockedExists = await Appointment.findOne({
+            ...baseFilter,
+            status: 'blocked'
         });
 
-        if (response) return res.status(400).json({ msg: "Request is already made" });
+        if (blockedExists) {
+            return res.status(403).json({ msg: 'You are currently blocked from scheduling appointments with this orphanage.' });
+        }
+
+        const activeRequest = await Appointment.findOne({
+            ...baseFilter,
+            status: { $in: ['pending', 'approved', 'needsConfirmation'] }
+        });
+
+        if (activeRequest) {
+            return res.status(400).json({ msg: 'You already have an active appointment request for this orphanage.' });
+        }
 
     }
     catch (err) {
-        res.status(500).json({ error: 'Failed to fetch appointment', err });
+        return res.status(500).json({ error: 'Failed to validate appointment request', details: err.message });
 
     }
 
     try {
-        const appt = await Appointment.create({
+        const appointmentPayload = {
             requesterId: id,
             requesterType: role === 'volunteer' ? 'volunteer' : 'user',
             orphanageId,
             requestedAt: new Date(requestedAt),
             purpose,
             status: 'pending',
-        });
+        };
+
+        if (childId) {
+            appointmentPayload.childId = childId;
+        }
+
+        const appt = await Appointment.create(appointmentPayload);
 
         // Get user and orphanage details for notification
         const [requesterDetails, orphanageDetails] = await Promise.all([
@@ -164,9 +189,37 @@ const approveAppointment = async (req, res) => {
     if (!appt) return res.status(404).json({ error: 'Appointment not found' });
     if (String(appt.orphanageId) !== String(orphanageId)) return res.status(403).json({ error: 'Not allowed for this orphanage' });
 
-    appt.status = 'approved';
-    if (req.body.requestedAt) appt.requestedAt = new Date(req.body.requestedAt);
+    const previousRequestedAt = appt.requestedAt ? new Date(appt.requestedAt) : null;
+    let newRequestedAt = previousRequestedAt;
+    let timeChanged = false;
+
+    if (req.body.requestedAt) {
+        const candidate = new Date(req.body.requestedAt);
+        if (!isNaN(candidate)) {
+            newRequestedAt = candidate;
+            if (!previousRequestedAt || previousRequestedAt.getTime() !== candidate.getTime()) {
+                timeChanged = true;
+            }
+        }
+    }
+
+    if (newRequestedAt) {
+        appt.requestedAt = newRequestedAt;
+    }
+
     if (req.body.adminResponse) appt.adminResponse = req.body.adminResponse;
+
+    if (timeChanged) {
+        appt.status = 'needsConfirmation';
+        appt.needsUserConfirmation = true;
+        appt.userConfirmedAt = null;
+        appt.userConfirmationNote = null;
+    } else {
+        appt.status = 'approved';
+        appt.needsUserConfirmation = false;
+        appt.userConfirmedAt = new Date();
+    }
+
     await appt.save();
 
     // Get user and orphanage details for email notification
@@ -175,21 +228,38 @@ const approveAppointment = async (req, res) => {
         getOrphanageDetails(appt.orphanageId, req)
     ]);
 
-    // Send email notification to the requester
     if (requesterDetails?.email) {
-        await publishToQueue('APPOINTMENT_NOTIFICATION.APPROVED', {
-            requesterEmail: requesterDetails.email,
-            requesterName: `${requesterDetails.fullname?.firstname || ''} ${requesterDetails.fullname?.lastname || ''}`.trim(),
-            orphanageName: orphanageDetails?.name || 'the orphanage',
-            requestedAt: appt.requestedAt,
-            purpose: appt.purpose,
-            adminResponse: appt.adminResponse
-        });
+        if (timeChanged) {
+            await publishToQueue('APPOINTMENT_NOTIFICATION.NEEDS_CONFIRMATION', {
+                requesterEmail: requesterDetails.email,
+                requesterName: `${requesterDetails.fullname?.firstname || ''} ${requesterDetails.fullname?.lastname || ''}`.trim(),
+                orphanageName: orphanageDetails?.name || 'the orphanage',
+                requestedAt: appt.requestedAt,
+                purpose: appt.purpose,
+                adminResponse: appt.adminResponse
+            });
+        } else {
+            await publishToQueue('APPOINTMENT_NOTIFICATION.APPROVED', {
+                requesterEmail: requesterDetails.email,
+                requesterName: `${requesterDetails.fullname?.firstname || ''} ${requesterDetails.fullname?.lastname || ''}`.trim(),
+                orphanageName: orphanageDetails?.name || 'the orphanage',
+                requestedAt: appt.requestedAt,
+                purpose: appt.purpose,
+                adminResponse: appt.adminResponse
+            });
+        }
     }
 
-    sendNotification({ to: `user:${appt.requesterId}`, subject: 'Appointment approved', message: `Your appointment has been approved.` });
+    const notificationMessage = timeChanged
+        ? 'Appointment updated. Please confirm the new schedule.'
+        : 'Your appointment has been approved.';
 
-    res.json({ message: 'Appointment approved', appointment: appt });
+    sendNotification({ to: `user:${appt.requesterId}`, subject: timeChanged ? 'Appointment needs confirmation' : 'Appointment approved', message: notificationMessage });
+
+    res.json({
+        message: timeChanged ? 'Appointment updated and awaiting user confirmation' : 'Appointment approved',
+        appointment: appt
+    });
 }
 
 const rejectAppointment = async (req, res) => {
@@ -241,6 +311,16 @@ const cancelAppointment = async (req, res) => {
         const appt = await Appointment.findById(id);
         if (!appt) return res.status(404).json({ error: 'Appointment not found' });
         if (String(appt.requesterId) !== String(userId)) return res.status(403).json({ error: 'Not your appointment' });
+        const status = (appt.status || '').toLowerCase();
+        if (status === 'approved') {
+            return res.status(400).json({ error: 'Approved appointments can only be cancelled by the orphanage.' });
+        }
+        if (status === 'needsconfirmation') {
+            return res.status(400).json({ error: 'Please respond to the pending confirmation instead of cancelling here.' });
+        }
+        if (status !== 'pending') {
+            return res.status(400).json({ error: 'Only pending requests can be cancelled.' });
+        }
         appt.status = 'cancelled';
         await appt.save();
 
@@ -308,6 +388,61 @@ const blockAppointment = async (req, res) => {
     }
 };
 
+const cancelAppointmentByAdmin = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const orphanageId = await resolveOrphanageId(req);
+        if (!orphanageId) {
+            return res.status(403).json({ error: 'Unable to resolve orphanage context.' });
+        }
+
+        const appt = await Appointment.findById(id);
+        if (!appt) return res.status(404).json({ error: 'Appointment not found' });
+        if (String(appt.orphanageId) !== String(orphanageId)) {
+            return res.status(403).json({ error: 'Not allowed for this orphanage' });
+        }
+
+        const status = (appt.status || '').toLowerCase();
+        if (status === 'cancelled') {
+            return res.status(400).json({ error: 'Appointment is already cancelled.' });
+        }
+        if (status === 'blocked') {
+            return res.status(400).json({ error: 'Blocked appointments cannot be cancelled.' });
+        }
+
+        appt.status = 'cancelled';
+        appt.needsUserConfirmation = false;
+        appt.userConfirmedAt = null;
+        if (req.body?.adminResponse) {
+            appt.adminResponse = req.body.adminResponse;
+        }
+
+        await appt.save();
+
+        const [requesterDetails, orphanageDetails] = await Promise.all([
+            getUserDetails(appt.requesterId, req),
+            getOrphanageDetails(appt.orphanageId, req)
+        ]);
+
+        if (requesterDetails?.email) {
+            await publishToQueue('APPOINTMENT_NOTIFICATION.CANCELLED_BY_ADMIN', {
+                requesterEmail: requesterDetails.email,
+                requesterName: `${requesterDetails.fullname?.firstname || ''} ${requesterDetails.fullname?.lastname || ''}`.trim(),
+                orphanageName: orphanageDetails?.name || 'the orphanage',
+                requestedAt: appt.requestedAt,
+                purpose: appt.purpose,
+                adminResponse: appt.adminResponse
+            });
+        }
+
+        sendNotification({ to: `user:${appt.requesterId}`, subject: 'Appointment cancelled', message: 'The orphanage cancelled this appointment.' });
+
+        return res.json({ message: 'Appointment cancelled for the requester', appointment: appt });
+    } catch (err) {
+        return res.status(500).json({ error: 'Failed to cancel appointment', details: err.message });
+    }
+}
+
 const sendReminders = async (req, res) => {
     try {
         const orphanageId = await resolveOrphanageId(req);
@@ -348,6 +483,49 @@ const sendReminders = async (req, res) => {
     }
 };
 
+const confirmAppointment = async (req, res) => {
+    const { id } = req.params;
+    const { action, note } = req.body || {};
+    const userId = req.user?.id;
+
+    if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const appt = await Appointment.findById(id);
+    if (!appt) return res.status(404).json({ error: 'Appointment not found' });
+    if (String(appt.requesterId) !== String(userId)) return res.status(403).json({ error: 'Not your appointment' });
+    if (appt.status !== 'needsConfirmation') {
+        return res.status(400).json({ error: 'This appointment does not require confirmation' });
+    }
+
+    const normalizedAction = (action || '').toLowerCase();
+
+    if (normalizedAction === 'accept') {
+        appt.status = 'approved';
+        appt.needsUserConfirmation = false;
+        appt.userConfirmedAt = new Date();
+        if (note) {
+            appt.userConfirmationNote = note;
+        }
+        await appt.save();
+        return res.json({ message: 'Appointment confirmed', appointment: appt });
+    }
+
+    if (normalizedAction === 'cancel' || normalizedAction === 'decline') {
+        appt.status = 'cancelled';
+        appt.needsUserConfirmation = false;
+        appt.userConfirmedAt = null;
+        if (note) {
+            appt.userConfirmationNote = note;
+        }
+        await appt.save();
+        return res.json({ message: 'Appointment cancelled', appointment: appt });
+    }
+
+    return res.status(400).json({ error: 'Invalid action. Use accept or cancel.' });
+}
+
 module.exports = {
     requestAppointment,
     getAllAppointments,
@@ -357,4 +535,6 @@ module.exports = {
     blockAppointment,
     sendReminders,
     cancelAppointment,
+    cancelAppointmentByAdmin,
+    confirmAppointment,
 };

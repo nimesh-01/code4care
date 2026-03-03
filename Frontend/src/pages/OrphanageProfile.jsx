@@ -3,21 +3,81 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   FaBuilding, FaMapMarkerAlt, FaPhone, FaEnvelope, FaHeart,
   FaArrowLeft, FaCheckCircle, FaClock, FaChild, FaFileAlt,
-  FaHandHoldingHeart, FaIdCard, FaGlobe, FaExclamationTriangle
+  FaHandHoldingHeart, FaIdCard, FaGlobe, FaExclamationTriangle, FaCalendarAlt
 } from 'react-icons/fa'
+import { toast } from 'react-toastify'
 import Navbar from '../components/Navbar'
+import AppointmentRequestModal from '../components/AppointmentRequestModal'
 import { useTheme } from '../context/ThemeContext'
+import { useAuth } from '../context/AuthContext'
 import { orphanagesAPI, childrenAPI } from '../services/api'
 
 const OrphanageProfile = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const { isDarkMode } = useTheme()
+  const { user } = useAuth()
   const [orphanage, setOrphanage] = useState(null)
   const [children, setChildren] = useState([])
   const [loading, setLoading] = useState(true)
   const [childrenLoading, setChildrenLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false)
+
+  const normalizeId = (value) => {
+    if (!value) return null
+    if (typeof value === 'string') return value
+    if (typeof value === 'object') {
+      return value._id || value.id || value.value || null
+    }
+    return null
+  }
+
+  const getAppointmentContext = () => {
+    if (!orphanage) return null
+    const orphanageIdentifier = normalizeId(orphanage._id || orphanage.id)
+    if (!orphanageIdentifier) return null
+    const addressParts = [
+      orphanage.address?.city,
+      orphanage.address?.state,
+      orphanage.address?.country,
+    ].filter(Boolean)
+
+    return {
+      type: 'orphanage',
+      orphanageId: orphanageIdentifier,
+      orphanageName: orphanage.name,
+      location: addressParts.join(', '),
+    }
+  }
+
+  const handleAppointmentClick = () => {
+    const context = getAppointmentContext()
+    if (!context) {
+      toast.error('Unable to find orphanage information for this request')
+      return
+    }
+
+    if (!user) {
+      sessionStorage.setItem('loginRedirectUrl', window.location.pathname)
+      toast.info('Please login to request an appointment')
+      navigate('/login')
+      return
+    }
+
+    const normalizedRole = (user.role || '').toLowerCase()
+    if (!['user', 'volunteer'].includes(normalizedRole)) {
+      toast.warn('Only users and volunteers can request appointments')
+      return
+    }
+
+    setShowAppointmentModal(true)
+  }
+
+  const handleAppointmentSuccess = () => {
+    setShowAppointmentModal(false)
+    navigate('/appointments')
+  }
 
   useEffect(() => {
     fetchOrphanage()
@@ -274,6 +334,32 @@ const OrphanageProfile = () => {
                       Donate Now
                     </Link>
                   </div>
+
+                  {user?.role !== 'orphanAdmin' && (
+                    <div className="mt-6 rounded-2xl border border-cream-200 bg-white p-6 shadow-sm dark:border-dark-700 dark:bg-dark-800">
+                      <div className="mb-3 flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-900/20">
+                          <FaCalendarAlt className="text-xl text-teal-500" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-teal-900 dark:text-cream-50">Plan an Appointment</h3>
+                          <p className="text-sm text-teal-500 dark:text-cream-300">Visit {orphanage.name}</p>
+                        </div>
+                      </div>
+                      <p className="text-sm text-teal-600 dark:text-cream-300">
+                        Share your preferred schedule to meet the caretakers or children. The orphanage admin will review your request.
+                      </p>
+                      <button
+                        onClick={handleAppointmentClick}
+                        className="mt-4 w-full rounded-xl bg-teal-600 py-3 text-white font-semibold hover:bg-teal-700 transition"
+                      >
+                        Request Appointment
+                      </button>
+                      <p className="mt-2 text-xs text-teal-400 dark:text-cream-400">
+                        Bring a valid ID on the day of your visit for verification.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Right Column - Details & Children */}
@@ -472,6 +558,14 @@ const OrphanageProfile = () => {
           </footer>
         </>
       )}
+
+          <AppointmentRequestModal
+            isOpen={showAppointmentModal}
+            onClose={() => setShowAppointmentModal(false)}
+            context={getAppointmentContext()}
+            defaultPurpose={orphanage ? `I would like to visit ${orphanage.name} to explore collaboration opportunities.` : ''}
+            onSuccess={handleAppointmentSuccess}
+          />
     </div>
   )
 }

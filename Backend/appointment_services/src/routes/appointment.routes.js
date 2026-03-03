@@ -12,6 +12,7 @@ router.post('/request',
     body('requestedAt').isISO8601().withMessage('Invalid date'),
     body('purpose').isLength({ min: 3 }).withMessage('Purpose is required'),
     body('orphanageId').notEmpty().withMessage('orphanageId is required'),
+    body('childId').optional().isMongoId().withMessage('childId must be a valid id'),
     controller.requestAppointment
 );
 
@@ -30,10 +31,16 @@ router.put('/:id/reject', authMiddleware, permit('orphanAdmin'), controller.reje
 //PUT /appointment/:id/block
 router.put('/:id/block', authMiddleware, permit('orphanAdmin'), controller.blockAppointment);
 
+//PUT /appointment/:id/cancel (admin override)
+router.put('/:id/cancel', authMiddleware, permit('orphanAdmin'), controller.cancelAppointmentByAdmin);
+
 //POST /appointment/send-reminders
 router.post('/send-reminders', authMiddleware, permit('orphanAdmin'), controller.sendReminders);
 
 //delete /appointment/:id/cancel
 router.delete('/:id/cancel', authMiddleware, permit('user', 'volunteer'), controller.cancelAppointment);
+
+//post /appointment/:id/confirm
+router.post('/:id/confirm', authMiddleware, permit('user', 'volunteer'), controller.confirmAppointment);
     
 module.exports = router;

@@ -9,6 +9,8 @@ const Navbar = () => {
   const { user, logout } = useAuth()
   const { isDarkMode, toggleTheme } = useTheme()
   const navigate = useNavigate()
+  const normalizedRole = (user?.role || '').toLowerCase()
+  const canViewAppointments = ['user', 'volunteer'].includes(normalizedRole)
 
   const handleLogout = () => {
     logout()
@@ -33,6 +35,7 @@ const Navbar = () => {
               <>
                 <NavLink to="/children">Children</NavLink>
                 <NavLink to="/orphanages">Orphanages</NavLink>
+                {canViewAppointments && <NavLink to="/appointments">Appointments</NavLink>}
                 <NavLink to="/donate">Donate</NavLink>
               </>
             )}
@@ -108,6 +111,9 @@ const Navbar = () => {
                 <>
                   <MobileNavLink to="/children" onClick={() => setIsOpen(false)}>Children</MobileNavLink>
                   <MobileNavLink to="/orphanages" onClick={() => setIsOpen(false)}>Orphanages</MobileNavLink>
+                  {canViewAppointments && (
+                    <MobileNavLink to="/appointments" onClick={() => setIsOpen(false)}>Appointments</MobileNavLink>
+                  )}
                   <MobileNavLink to="/donate" onClick={() => setIsOpen(false)}>Donate</MobileNavLink>
                 </>
               )}

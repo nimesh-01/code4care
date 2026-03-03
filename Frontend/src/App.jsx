@@ -10,6 +10,7 @@ import Profile from './pages/Profile'
 import ChildProfile from './pages/ChildProfile'
 import OrphanageProfile from './pages/OrphanageProfile'
 import OrphanageChildren from './pages/OrphanageChildren'
+import Appointments from './pages/Appointments'
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
 import ForgotPassword from './pages/auth/ForgotPassword'
@@ -72,6 +73,14 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route
+          path="/appointments"
+          element={
+            <ProtectedRoute allowedRoles={['user', 'volunteer']}>
+              <Appointments />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Profile Page (Protected) */}
         <Route
