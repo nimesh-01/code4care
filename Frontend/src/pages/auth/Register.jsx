@@ -8,7 +8,7 @@ import {
 import { toast } from 'react-toastify'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
-import api from '../../services/api'
+import api, { authAPI } from '../../services/api'
 
 const Register = () => {
   const [step, setStep] = useState(1)
@@ -35,10 +35,21 @@ const Register = () => {
     registrationNumber: '',
     totalChildren: '',
     establishedYear: '',
+    adminDesignation: '',
+    adminGender: '',
+    adminDob: '',
+    adminAlternatePhone: '',
+    adminAlternateEmail: '',
+    governmentIdType: '',
+    governmentIdNumber: '',
+    emergencyContactName: '',
+    emergencyContactRelation: '',
+    emergencyContactPhone: '',
   })
   const [documents, setDocuments] = useState({
     registrationCertificate: null,
     governmentLicense: null,
+    adminIdDocument: null,
     otherDocuments: [],
   })
   const [showPassword, setShowPassword] = useState(false)
@@ -71,6 +82,27 @@ const Register = () => {
       description: 'Register and manage your orphanage on the platform'
     },
   ]
+
+  const governmentIdOptions = [
+    { value: '', label: 'Select ID type' },
+    { value: 'aadhaar', label: 'Aadhaar' },
+    { value: 'pan', label: 'PAN' },
+    { value: 'passport', label: 'Passport' },
+    { value: 'voterId', label: 'Voter ID' },
+    { value: 'drivingLicense', label: 'Driving License' },
+    { value: 'other', label: 'Other Government ID' },
+  ]
+
+  const genderOptions = [
+    { value: '', label: 'Select gender (optional)' },
+    { value: 'male', label: 'Male' },
+    { value: 'female', label: 'Female' },
+    { value: 'nonBinary', label: 'Non-binary' },
+    { value: 'other', label: 'Other' },
+    { value: 'preferNotToSay', label: 'Prefer not to say' },
+  ]
+
+  const isAdmin = formData.role === 'orphanAdmin'
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -134,7 +166,7 @@ const Register = () => {
       toast.error('Please enter a valid email address')
       return false
     }
-    if (formData.role === 'orphanAdmin' && !formData.phone) {
+    if (isAdmin && !formData.phone) {
       toast.error('Phone number is required for orphanage admins')
       return false
     }
@@ -157,8 +189,34 @@ const Register = () => {
     return true
   }
 
+  const validateAdminInfo = () => {
+    if (!isAdmin) return true
+
+    if (!formData.adminDesignation) {
+      toast.error('Designation is required for orphanage admins')
+      return false
+    }
+
+    if (!formData.governmentIdType) {
+      toast.error('Please select a government ID type')
+      return false
+    }
+
+    if (!formData.governmentIdNumber || formData.governmentIdNumber.length < 4) {
+      toast.error('Please provide a valid government ID number')
+      return false
+    }
+
+    if (!formData.emergencyContactName || !formData.emergencyContactPhone) {
+      toast.error('Emergency contact name and phone are required')
+      return false
+    }
+
+    return true
+  }
+
   const validateRoleSpecificFields = () => {
-    if (formData.role === 'orphanAdmin') {
+    if (isAdmin) {
       if (!formData.orphanageName || !formData.orphanageAddress || !formData.registrationNumber) {
         toast.error('Please fill in all required orphanage details')
         return false
@@ -182,17 +240,25 @@ const Register = () => {
   const nextStep = () => {
     if (step === 2 && !validateStep2()) return
     if (step === 3 && !validateStep3()) return
-    setStep(step + 1)
+    if (isAdmin && step === 4 && !validateAdminInfo()) return
+    if (isAdmin && step === 5 && !validateRoleSpecificFields()) return
+    const totalSteps = getTotalSteps()
+    setStep((prev) => Math.min(prev + 1, totalSteps))
   }
 
   const prevStep = () => {
-    setStep(step - 1)
+    setStep((prev) => Math.max(prev - 1, 1))
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
+    if (isAdmin && !validateAdminInfo()) return
     if (!validateRoleSpecificFields()) return
+    if (isAdmin && !documents.adminIdDocument) {
+      toast.error('Government ID proof is required to verify the admin')
+      return
+    }
 
     setLoading(true)
     try {
@@ -214,7 +280,7 @@ const Register = () => {
       }
 
       // Add orphanage data for orphanAdmin
-      if (formData.role === 'orphanAdmin') {
+      if (isAdmin) {
         userData.orphanage = {
           name: formData.orphanageName,
           registrationNumber: formData.registrationNumber,
@@ -228,6 +294,21 @@ const Register = () => {
             country: formData.orphanageCountry,
           }
         }
+
+        userData.adminProfile = {
+          designation: formData.adminDesignation,
+          gender: formData.adminGender || undefined,
+          dateOfBirth: formData.adminDob || undefined,
+          alternatePhone: formData.adminAlternatePhone || undefined,
+          alternateEmail: formData.adminAlternateEmail || undefined,
+          governmentIdType: formData.governmentIdType,
+          governmentIdNumber: formData.governmentIdNumber,
+          emergencyContact: {
+            name: formData.emergencyContactName,
+            relation: formData.emergencyContactRelation || undefined,
+            phone: formData.emergencyContactPhone
+          }
+        }
       }
 
       const result = await register(userData)
@@ -235,12 +316,18 @@ const Register = () => {
       const orphanage = result.orphanage
       
       // Upload documents if orphanAdmin and documents are selected
-      if (formData.role === 'orphanAdmin' && orphanage?.id) {
-        const orphanageId = orphanage.id
+      if (isAdmin) {
+        const orphanageId = orphanage?.id
         const uploadPromises = []
+
+        if (documents.adminIdDocument && user?.id) {
+          uploadPromises.push(
+            authAPI.uploadAdminIdDocumentPublic(user.id, documents.adminIdDocument)
+              .catch(err => console.error('Failed to upload admin ID document:', err))
+          )
+        }
         
-        // Upload registration certificate using public endpoint
-        if (documents.registrationCertificate) {
+        if (orphanageId && documents.registrationCertificate) {
           uploadPromises.push(
             api.post(`/auth/orphanage/${orphanageId}/document`, (() => {
               const fd = new FormData()
@@ -253,8 +340,7 @@ const Register = () => {
           )
         }
         
-        // Upload government license using public endpoint
-        if (documents.governmentLicense) {
+        if (orphanageId && documents.governmentLicense) {
           uploadPromises.push(
             api.post(`/auth/orphanage/${orphanageId}/document`, (() => {
               const fd = new FormData()
@@ -267,8 +353,8 @@ const Register = () => {
           )
         }
         
-        // Upload other documents using public endpoint
-        for (const doc of documents.otherDocuments) {
+        if (orphanageId) {
+          for (const doc of documents.otherDocuments) {
           uploadPromises.push(
             api.post(`/auth/orphanage/${orphanageId}/document`, (() => {
               const fd = new FormData()
@@ -280,6 +366,7 @@ const Register = () => {
               headers: { 'Content-Type': 'multipart/form-data' }
             }).catch(err => console.error('Failed to upload document:', err))
           )
+          }
         }
         
         // Wait for all uploads to complete (don't block registration success)
@@ -296,7 +383,7 @@ const Register = () => {
       } else {
         // Regular user/volunteer registration - redirect based on role
         toast.success('Registration successful! Welcome to SoulConnect!')
-        const destination = newUser.role === 'orphanAdmin' ? '/dashboard/admin' : '/'
+        const destination = result.user?.role === 'orphanAdmin' ? '/dashboard/admin' : '/'
         navigate(destination)
       }
     } catch (error) {
@@ -307,8 +394,14 @@ const Register = () => {
   }
 
   const getTotalSteps = () => {
-    if (formData.role === 'user' || formData.role === 'volunteer') return 3
-    return 5 // admin has extra steps for orphanage details and documents
+    return isAdmin ? 6 : 3
+  }
+
+  const getStepLabel = () => {
+    const labels = isAdmin
+      ? ['Choose Role', 'Basic Info', 'Set Password', 'Admin Info', 'Orphanage Info', 'Documents']
+      : ['Choose Role', 'Basic Info', 'Set Password']
+    return labels[step - 1] || ''
   }
 
   return (
@@ -339,11 +432,7 @@ const Register = () => {
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm text-teal-700 dark:text-cream-200">Step {step} of {getTotalSteps()}</span>
               <span className="text-sm text-coral-500 dark:text-coral-400 font-medium">
-                {step === 1 && 'Choose Role'}
-                {step === 2 && 'Basic Info'}
-                {step === 3 && 'Set Password'}
-                {step === 4 && 'Orphanage Info'}
-                {step === 5 && 'Documents'}
+                {getStepLabel()}
               </span>
             </div>
             <div className="h-2 bg-cream-100 dark:bg-dark-700 rounded-full overflow-hidden">
@@ -467,7 +556,7 @@ const Register = () => {
                 {/* Phone Field */}
                 <div>
                   <label className="block text-sm font-medium text-teal-800 dark:text-cream-100 mb-2">
-                    Phone Number {formData.role === 'orphanAdmin' && <span className="text-coral-500">*</span>}
+                    Phone Number {isAdmin && <span className="text-coral-500">*</span>}
                   </label>
                   <div className="relative">
                     <FaPhone className="absolute left-4 top-1/2 -translate-y-1/2 text-coral-400 dark:text-coral-500" />
@@ -570,7 +659,7 @@ const Register = () => {
                   >
                     Back
                   </button>
-                  {formData.role === 'orphanAdmin' ? (
+                  {isAdmin ? (
                     <button
                       type="button"
                       onClick={nextStep}
@@ -593,8 +682,183 @@ const Register = () => {
             </div>
           )}
 
-          {/* Step 4: Orphanage Details (for orphanAdmin only) */}
-          {step === 4 && formData.role === 'orphanAdmin' && (
+          {/* Step 4: Admin Personal Verification */}
+          {step === 4 && isAdmin && (
+            <div className="max-h-[60vh] overflow-y-auto pr-2">
+              <h2 className="text-2xl font-playfair font-bold text-teal-900 dark:text-cream-50 mb-4 text-center">
+                Administrator Verification
+              </h2>
+              <p className="text-sm text-teal-600 dark:text-cream-300 mb-6 text-center">
+                Provide your personal information so we can verify the primary administrator of this orphanage.
+              </p>
+              <form className="space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-teal-800 dark:text-cream-100 mb-2">
+                    Designation / Role <span className="text-coral-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="adminDesignation"
+                    value={formData.adminDesignation}
+                    onChange={handleChange}
+                    placeholder="e.g., Founder, Director, Administrator"
+                    className="w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-teal-800 dark:text-cream-100 mb-2">
+                      Alternate Email (optional)
+                    </label>
+                    <input
+                      type="email"
+                      name="adminAlternateEmail"
+                      value={formData.adminAlternateEmail}
+                      onChange={handleChange}
+                      placeholder="contact@orphanage.org"
+                      className="w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-teal-800 dark:text-cream-100 mb-2">
+                      Alternate Phone (optional)
+                    </label>
+                    <input
+                      type="tel"
+                      name="adminAlternatePhone"
+                      value={formData.adminAlternatePhone}
+                      onChange={handleChange}
+                      placeholder="Another reachable number"
+                      className="w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-teal-800 dark:text-cream-100 mb-2">
+                      Date of Birth (optional)
+                    </label>
+                    <input
+                      type="date"
+                      name="adminDob"
+                      value={formData.adminDob}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-teal-800 dark:text-cream-100 mb-2">
+                      Gender (optional)
+                    </label>
+                    <select
+                      name="adminGender"
+                      value={formData.adminGender}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                    >
+                      {genderOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-teal-800 dark:text-cream-100 mb-2">
+                      Government ID Type <span className="text-coral-500">*</span>
+                    </label>
+                    <select
+                      name="governmentIdType"
+                      value={formData.governmentIdType}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                    >
+                      {governmentIdOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-teal-800 dark:text-cream-100 mb-2">
+                      Government ID Number <span className="text-coral-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <FaIdCard className="absolute left-4 top-1/2 -translate-y-1/2 text-coral-400 dark:text-coral-500" />
+                      <input
+                        type="text"
+                        name="governmentIdNumber"
+                        value={formData.governmentIdNumber}
+                        onChange={handleChange}
+                        placeholder="Enter ID number"
+                        className="w-full pl-11 pr-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-teal-800 dark:text-cream-100 mb-2">
+                    Emergency Contact <span className="text-coral-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <input
+                      type="text"
+                      name="emergencyContactName"
+                      value={formData.emergencyContactName}
+                      onChange={handleChange}
+                      placeholder="Name"
+                      className="w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                    />
+                    <input
+                      type="text"
+                      name="emergencyContactRelation"
+                      value={formData.emergencyContactRelation}
+                      onChange={handleChange}
+                      placeholder="Relation (optional)"
+                      className="w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                    />
+                    <input
+                      type="tel"
+                      name="emergencyContactPhone"
+                      value={formData.emergencyContactPhone}
+                      onChange={handleChange}
+                      placeholder="Phone number"
+                      className="w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-teal-50 dark:bg-teal-900/20 rounded-xl p-4">
+                  <p className="text-sm text-teal-700 dark:text-teal-400">
+                    We never share your personal details publicly. This information is only used by our trust & safety team to verify the legitimacy of the orphanage.
+                  </p>
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={prevStep}
+                    className="flex-1 py-3 border-2 border-teal-600 dark:border-teal-400 text-teal-600 dark:text-teal-400 font-semibold rounded-xl hover:bg-teal-600 hover:text-white dark:hover:bg-teal-400 dark:hover:text-dark-900 transition-all duration-300"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={nextStep}
+                    className="flex-1 py-3 bg-coral-500 hover:bg-coral-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    Continue
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* Step 5: Orphanage Details (for orphanAdmin only) */}
+          {step === 5 && isAdmin && (
             <div className="max-h-[60vh] overflow-y-auto pr-2">
               <h2 className="text-2xl font-playfair font-bold text-teal-900 dark:text-cream-50 mb-6 text-center">
                 Orphanage Information
@@ -837,16 +1101,60 @@ const Register = () => {
             </div>
           )}
 
-          {/* Step 5: Document Uploads (for orphanAdmin only) */}
-          {step === 5 && formData.role === 'orphanAdmin' && (
+          {/* Step 6: Document Uploads (for orphanAdmin only) */}
+          {step === 6 && isAdmin && (
             <div>
               <h2 className="text-2xl font-playfair font-bold text-teal-900 dark:text-cream-50 mb-6 text-center">
                 Upload Documents
               </h2>
               <p className="text-sm text-teal-600 dark:text-cream-300 mb-6 text-center">
-                Upload verification documents. You can also upload these later from your dashboard.
+                Upload verification documents. You can also upload supporting files later from your dashboard.
               </p>
               <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Admin ID Proof */}
+                <div>
+                  <label className="block text-sm font-medium text-teal-800 dark:text-cream-100 mb-2">
+                    Government ID Proof (Admin) <span className="text-coral-500">*</span>
+                  </label>
+                  <div className="border-2 border-dashed border-cream-300 dark:border-dark-600 rounded-xl p-6 text-center hover:border-coral-400 dark:hover:border-coral-500 transition-colors">
+                    {documents.adminIdDocument ? (
+                      <div className="flex items-center justify-between bg-cream-50 dark:bg-dark-700 rounded-lg p-3">
+                        <div className="flex items-center gap-3">
+                          <FaFileAlt className="text-coral-500 text-xl" />
+                          <span className="text-sm text-teal-800 dark:text-cream-100 truncate max-w-[180px]">
+                            {documents.adminIdDocument.name}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeFile('adminIdDocument')}
+                          className="text-coral-500 hover:text-coral-600"
+                        >
+                          <FaTimesCircle />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="cursor-pointer">
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={(e) => handleFileChange(e, 'adminIdDocument')}
+                          className="hidden"
+                        />
+                        <div className="flex flex-col items-center gap-2">
+                          <FaUpload className="text-3xl text-teal-400 dark:text-cream-400" />
+                          <span className="text-sm text-teal-600 dark:text-cream-300">
+                            Upload a clear scan of your government ID
+                          </span>
+                          <span className="text-xs text-teal-400 dark:text-cream-400">
+                            PDF, JPG, PNG (max 5MB)
+                          </span>
+                        </div>
+                      </label>
+                    )}
+                  </div>
+                </div>
+
                 {/* Registration Certificate */}
                 <div>
                   <label className="block text-sm font-medium text-teal-800 dark:text-cream-100 mb-2">
@@ -991,7 +1299,7 @@ const Register = () => {
                 {/* Info Note */}
                 <div className="bg-teal-50 dark:bg-teal-900/20 rounded-xl p-4">
                   <p className="text-sm text-teal-700 dark:text-teal-400">
-                    <strong>Note:</strong> Your orphanage will be in "pending" status until our team verifies your documents. 
+                    <strong>Note:</strong> Your orphanage will remain in "pending" status until our team reviews both your admin identity proof and orphanage documents. 
                     You can still access your dashboard and add children profiles while verification is in progress.
                   </p>
                 </div>

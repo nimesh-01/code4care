@@ -12,7 +12,8 @@ const {
     refundDonation,
     getAllDonations,
     generateReceipt,
-    downloadReceipt
+    downloadReceipt,
+    getOrphanageChartStats
 } = require('../controllers/donation.controller');
 
 const { authMiddleware } = require('../middlewares/auth.middleware');
@@ -52,6 +53,7 @@ router.get('/user/:userId', authMiddleware, getUserDonations);
  * @access  Protected (OrphanAdmin of that orphanage or SuperAdmin)
  */
 router.get('/orphanage/:orphanageId', authMiddleware, permit('orphanAdmin', 'superAdmin'), getOrphanageDonations);
+router.get('/orphanage/:orphanageId/chart-stats', authMiddleware, permit('orphanAdmin', 'superAdmin'), getOrphanageChartStats);
 router.get('/orphanage/:orphanageId/receipts', authMiddleware, permit('orphanAdmin', 'superAdmin'), downloadOrphanageReceipts);
 router.get('/orphanage/:orphanageId/export', authMiddleware, permit('orphanAdmin', 'superAdmin'), exportOrphanageDonations);
 

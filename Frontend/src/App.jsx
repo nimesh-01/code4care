@@ -49,6 +49,14 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   return children
 }
 
+const ProfileAccessGate = () => {
+  const { user } = useAuth()
+  if (user?.role === 'orphanAdmin') {
+    return <Navigate to="/dashboard/admin/settings" replace />
+  }
+  return <Profile />
+}
+
 function App() {
   return (
     <div className="min-h-screen bg-gray-50">
@@ -70,7 +78,7 @@ function App() {
           path="/profile"
           element={
             <ProtectedRoute allowedRoles={['user', 'volunteer', 'orphanAdmin', 'superAdmin']}>
-              <Profile />
+              <ProfileAccessGate />
             </ProtectedRoute>
           }
         />

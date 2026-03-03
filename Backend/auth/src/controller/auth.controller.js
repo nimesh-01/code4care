@@ -9,6 +9,8 @@ const crypto = require('crypto')
 
 const { uploadBuffer, deleteFile } = require('../services/imagekit.service')
 
+const ADMIN_ID_UPLOAD_ALLOWED_STATUSES = ['pending', 'rejected', 'blocked']
+
 async function registerUser(req, res) {
     try {
         const { username, email, password, fullname: { firstname, lastname }, role } = req.body
@@ -210,6 +212,7 @@ async function getCurrentUser(req, res) {
                 profileUrl: user.profileUrl,
                 status: user.status,
                 orphanageId: user.orphanageId,
+                adminProfile: user.adminProfile,
                 createdAt: user.createdAt
             }
         })
@@ -223,7 +226,7 @@ async function updateUser(req, res) {
         const userId = req.user.id
 
         // fetch current user (include profileFileId)
-        const existing = await userModel.findById(userId).select('+profileFileId')
+        const existing = await userModel.findById(userId).select('+profileFileId adminProfile')
         if (!existing) return res.status(404).json({ message: 'User not found' })
 
         // uniqueness checks for username
@@ -253,6 +256,100 @@ async function updateUser(req, res) {
 
             update.profileUrl = url
             update.profileFileId = fileId
+        }
+
+        const adminProfileInput = req.body.adminProfile
+        if (adminProfileInput && typeof adminProfileInput === 'object') {
+            const adminProfileUpdate = {}
+            const sanitizeString = (value) => {
+                if (typeof value !== 'string') return undefined
+                const trimmed = value.trim()
+                return trimmed.length ? trimmed : undefined
+            }
+
+            if (adminProfileInput.designation !== undefined) {
+                adminProfileUpdate.designation = sanitizeString(adminProfileInput.designation)
+            }
+            if (adminProfileInput.gender !== undefined) {
+                const genderValue = sanitizeString(adminProfileInput.gender)
+                adminProfileUpdate.gender = genderValue ? genderValue.toLowerCase() : undefined
+            }
+            if (adminProfileInput.alternatePhone !== undefined) {
+                adminProfileUpdate.alternatePhone = sanitizeString(adminProfileInput.alternatePhone)
+            }
+            if (adminProfileInput.alternateEmail !== undefined) {
+                const emailValue = sanitizeString(adminProfileInput.alternateEmail)
+                adminProfileUpdate.alternateEmail = emailValue ? emailValue.toLowerCase() : undefined
+            }
+            if (adminProfileInput.governmentIdType !== undefined) {
+                const typeValue = sanitizeString(adminProfileInput.governmentIdType)
+                adminProfileUpdate.governmentIdType = typeValue ? typeValue.toLowerCase() : undefined
+            }
+            if (adminProfileInput.dateOfBirth !== undefined) {
+                if (adminProfileInput.dateOfBirth) {
+                    const dob = new Date(adminProfileInput.dateOfBirth)
+                    if (Number.isNaN(dob.getTime())) {
+                        return res.status(400).json({ message: 'Invalid date of birth provided' })
+                    }
+                    adminProfileUpdate.dateOfBirth = dob
+                } else {
+                    adminProfileUpdate.dateOfBirth = null
+                }
+            }
+            if (adminProfileInput.governmentIdNumber !== undefined) {
+                const normalizedGovId = sanitizeString(adminProfileInput.governmentIdNumber)
+                if (normalizedGovId) {
+                    const upperGovId = normalizedGovId.toUpperCase()
+                    const currentGovId = existing.adminProfile?.governmentIdNumber
+                    if (!currentGovId || currentGovId !== upperGovId) {
+                        const duplicate = await userModel.findOne({
+                            _id: { $ne: userId },
+                            'adminProfile.governmentIdNumber': upperGovId
+                        })
+                        if (duplicate) {
+                            return res.status(409).json({ message: 'Government ID already registered with another admin' })
+                        }
+                    }
+                    adminProfileUpdate.governmentIdNumber = upperGovId
+                } else {
+                    adminProfileUpdate.governmentIdNumber = undefined
+                }
+            }
+
+            if (adminProfileInput.emergencyContact && typeof adminProfileInput.emergencyContact === 'object') {
+                const contactUpdate = {}
+                if (adminProfileInput.emergencyContact.name !== undefined) {
+                    contactUpdate.name = sanitizeString(adminProfileInput.emergencyContact.name)
+                }
+                if (adminProfileInput.emergencyContact.phone !== undefined) {
+                    contactUpdate.phone = sanitizeString(adminProfileInput.emergencyContact.phone)
+                }
+                if (adminProfileInput.emergencyContact.relation !== undefined) {
+                    contactUpdate.relation = sanitizeString(adminProfileInput.emergencyContact.relation)
+                }
+                const filteredContact = Object.fromEntries(
+                    Object.entries(contactUpdate).filter(([, value]) => value !== undefined)
+                )
+                if (Object.keys(filteredContact).length) {
+                    let existingContact = {}
+                    if (existing.adminProfile && existing.adminProfile.emergencyContact) {
+                        existingContact = typeof existing.adminProfile.emergencyContact.toObject === 'function'
+                            ? existing.adminProfile.emergencyContact.toObject()
+                            : existing.adminProfile.emergencyContact
+                    }
+                    adminProfileUpdate.emergencyContact = { ...existingContact, ...filteredContact }
+                }
+            }
+
+            const filteredProfileUpdate = Object.fromEntries(
+                Object.entries(adminProfileUpdate).filter(([, value]) => value !== undefined)
+            )
+            if (Object.keys(filteredProfileUpdate).length) {
+                const baseProfile = existing.adminProfile && typeof existing.adminProfile.toObject === 'function'
+                    ? existing.adminProfile.toObject()
+                    : existing.adminProfile || {}
+                update.adminProfile = { ...baseProfile, ...filteredProfileUpdate }
+            }
         }
 
         if (Object.keys(update).length === 0) {
@@ -341,14 +438,59 @@ async function resetPassword(req, res) {
 }
 async function registerOrphan(req, res) {
     try {
-        // Expect user fields + orphanage fields in req.body
-        const { username, email, password, fullname: { firstname, lastname }, phone } = req.body
-        const orphanageData = req.body.orphanage || req.body; // allow nested or top-level
-        console.log("data in register orphan")
+        const {
+            username,
+            email,
+            password,
+            fullname = {},
+            phone,
+            adminProfile: adminProfileInput = {}
+        } = req.body
+        const { firstname, lastname = '' } = fullname
+        const orphanageData = req.body.orphanage || req.body // allow nested or top-level
+
+        if (!firstname) {
+            return res.status(400).json({ message: 'Firstname is required' })
+        }
+
         // check existing user
         const isUserAlreadyExists = await userModel.findOne({ $or: [{ username }, { email }] })
         if (isUserAlreadyExists) {
             return res.status(409).json({ message: 'Username or email already exists' })
+        }
+
+        // ensure admin profile exists
+        if (typeof adminProfileInput !== 'object') {
+            return res.status(400).json({ message: 'Admin profile information is required' })
+        }
+
+        const requiredAdminFields = ['designation', 'governmentIdType', 'governmentIdNumber']
+        for (const field of requiredAdminFields) {
+            if (!adminProfileInput[field]) {
+                return res.status(400).json({ message: `${field} is required for orphanage admins` })
+            }
+        }
+
+        if (!adminProfileInput.emergencyContact || !adminProfileInput.emergencyContact.name || !adminProfileInput.emergencyContact.phone) {
+            return res.status(400).json({ message: 'Emergency contact name and phone are required' })
+        }
+
+        let parsedDob = null
+        if (adminProfileInput.dateOfBirth) {
+            const dob = new Date(adminProfileInput.dateOfBirth)
+            if (Number.isNaN(dob.getTime())) {
+                return res.status(400).json({ message: 'Invalid date of birth provided' })
+            }
+            parsedDob = dob
+        }
+
+        const normalizedGovernmentId = adminProfileInput.governmentIdNumber?.toUpperCase()
+        const normalizedGovernmentIdType = adminProfileInput.governmentIdType?.toLowerCase()
+        if (normalizedGovernmentId) {
+            const existingGovId = await userModel.findOne({ 'adminProfile.governmentIdNumber': normalizedGovernmentId })
+            if (existingGovId) {
+                return res.status(409).json({ message: 'Government ID already registered with another admin' })
+            }
         }
 
         // check orphanage registration number uniqueness if provided
@@ -361,13 +503,43 @@ async function registerOrphan(req, res) {
 
         const hash = await bcrypt.hash(password, 10)
 
+        const adminProfilePayload = {
+            designation: adminProfileInput.designation?.trim(),
+            gender: adminProfileInput.gender || undefined,
+            dateOfBirth: parsedDob || undefined,
+            alternateEmail: adminProfileInput.alternateEmail?.trim().toLowerCase() || undefined,
+            alternatePhone: adminProfileInput.alternatePhone || undefined,
+            governmentIdType: normalizedGovernmentIdType,
+            governmentIdNumber: normalizedGovernmentId,
+            emergencyContact: {
+                name: adminProfileInput.emergencyContact.name?.trim(),
+                relation: adminProfileInput.emergencyContact.relation?.trim() || 'Primary Contact',
+                phone: adminProfileInput.emergencyContact.phone?.trim()
+            }
+        }
+
+        Object.keys(adminProfilePayload).forEach((key) => {
+            if (adminProfilePayload[key] === undefined || adminProfilePayload[key] === null) {
+                delete adminProfilePayload[key]
+            }
+        })
+        if (adminProfilePayload.emergencyContact) {
+            const contact = adminProfilePayload.emergencyContact
+            Object.keys(contact).forEach((key) => {
+                if (contact[key] === undefined || contact[key] === null) {
+                    delete contact[key]
+                }
+            })
+        }
+
         const user = await userModel.create({
             username,
             email,
             password: hash,
             fullname: { firstname, lastname },
             role: 'orphanAdmin',
-            phone
+            phone,
+            adminProfile: adminProfilePayload
         })
 
         // Build orphanage payload
@@ -378,7 +550,11 @@ async function registerOrphan(req, res) {
             orphanage_phone: orphanageData.orphanage_phone,
             address: orphanageData.address || {},
             documents: orphanageData.documents || {},
-            orphanAdmin: user._id
+            orphanAdmin: user._id,
+            description: orphanageData.description,
+            website: orphanageData.website,
+            establishedYear: orphanageData.establishedYear,
+            totalChildren: orphanageData.totalChildren
         }
 
         const orphanage = await Orphanage.create(orphanagePayload)
@@ -389,8 +565,8 @@ async function registerOrphan(req, res) {
 
         // publish events
         await Promise.all([
-            publishToQueue('AUTH_NOTIFICATION.ORPHANAGE_ADMIN_CREATED', { 
-                id: user._id, 
+            publishToQueue('AUTH_NOTIFICATION.ORPHANAGE_ADMIN_CREATED', {
+                id: user._id,
                 email: user.email,
                 username: user.username,
                 fullname: `${firstname} ${lastname || ''}`.trim(),
@@ -399,12 +575,10 @@ async function registerOrphan(req, res) {
             publishToQueue('ORPHANAGE.CREATED', orphanage)
         ])
 
-        // Don't auto-login for orphanAdmin - they need admin approval first
-        // Return success with pending status message
         return res.status(201).json({
             message: 'Registration successful! Your orphanage is under review. You will be able to login once our team verifies your documents and approves your registration.',
             status: 'pending',
-            user: { id: user._id, username: user.username, email: user.email, role: user.role },
+            user: { id: user._id, username: user.username, email: user.email, role: user.role, adminProfile: user.adminProfile },
             orphanage: { id: orphanage._id, name: orphanage.name, status: orphanage.status }
         })
     } catch (err) {
@@ -479,6 +653,59 @@ async function listOrphanages(req, res) {
         return res.status(200).json({ orphanages })
     } catch (err) {
         console.error('Error in listOrphanages:', err)
+        return res.status(500).json({ message: 'Internal Server Error' })
+    }
+}
+
+async function uploadAdminIdDocumentPublic(req, res) {
+    try {
+        const { userId } = req.params
+        const admin = await userModel.findById(userId).select('role status adminProfile')
+        if (!admin) return res.status(404).json({ message: 'Admin user not found' })
+        if (admin.role !== 'orphanAdmin') {
+            return res.status(403).json({ message: 'Only orphanage admins can upload ID documents' })
+        }
+
+        if (!ADMIN_ID_UPLOAD_ALLOWED_STATUSES.includes(admin.status)) {
+            return res.status(403).json({
+                message: 'Public ID upload is allowed only while verification is pending or under review'
+            })
+        }
+
+        if (!req.file || !req.file.buffer) {
+            return res.status(400).json({ message: 'No document uploaded' })
+        }
+
+        const { originalname } = req.file
+        const folder = `/orphanAdmins/${admin._id}/identity`
+        const resp = await uploadBuffer(
+            req.file.buffer,
+            `${Date.now()}-${originalname}`,
+            folder,
+            req.file.mimetype
+        )
+
+        admin.adminProfile = admin.adminProfile || {}
+        const previousFileId = admin.adminProfile.governmentIdDocument?.fileId
+        if (previousFileId) {
+            try {
+                await deleteFile(previousFileId)
+            } catch (err) {
+                console.error('Failed to delete previous admin ID document:', err)
+            }
+        }
+        admin.adminProfile.governmentIdDocument = {
+            url: resp.url,
+            fileId: resp.fileId
+        }
+        await admin.save()
+
+        return res.status(200).json({
+            message: 'Government ID document uploaded successfully',
+            document: admin.adminProfile.governmentIdDocument
+        })
+    } catch (err) {
+        console.error('Error in uploadAdminIdDocumentPublic:', err)
         return res.status(500).json({ message: 'Internal Server Error' })
     }
 }
@@ -601,8 +828,6 @@ async function getOrphanageById(req, res) {
 async function uploadOrphanageDocumentPublic(req, res) {
     try {
         const { orphanageId } = req.params
-        
-        // Find the orphanage
         const orphanage = await Orphanage.findById(orphanageId)
         if (!orphanage) {
             return res.status(404).json({ message: 'Orphanage not found' })
@@ -656,4 +881,4 @@ async function uploadOrphanageDocumentPublic(req, res) {
     }
 }
 
-module.exports = { registerUser, registerOrphan, loginUser, getCurrentUser, updateUser, logoutUser, forgotPassword, resetPassword, updateOrphanage, uploadOrphanageDocument, uploadOrphanageDocumentPublic, deleteOrphanageDocument, getOrphanage, listOrphanages, getUserById, getOrphanageById }
+module.exports = { registerUser, registerOrphan, loginUser, getCurrentUser, updateUser, logoutUser, forgotPassword, resetPassword, updateOrphanage, uploadOrphanageDocument, uploadOrphanageDocumentPublic, deleteOrphanageDocument, getOrphanage, listOrphanages, getUserById, getOrphanageById, uploadAdminIdDocumentPublic }

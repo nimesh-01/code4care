@@ -122,7 +122,9 @@ const AdminLayout = () => {
                     <p className="text-sm text-teal-400 dark:text-cream-400/80">Fetching children, donations, appointments and more.</p>
                 </div>
               ) : (
-                <Outlet />
+                <>
+                  <Outlet />
+                </>
               )}
             </div>
             </main>

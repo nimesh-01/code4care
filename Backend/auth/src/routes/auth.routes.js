@@ -60,6 +60,8 @@ router.get('/orphanage', authMiddleware.authMiddleware, authController.getOrphan
 router.post('/orphanage/document', authMiddleware.authMiddleware, upload.single('document'), authController.uploadOrphanageDocument)
 // Public document upload for pending orphanages during registration (no auth required)
 router.post('/orphanage/:orphanageId/document', upload.single('document'), authController.uploadOrphanageDocumentPublic)
+// Public admin ID upload for pending orphan admins
+router.post('/orphan-admin/:userId/id-document', upload.single('document'), authController.uploadAdminIdDocumentPublic)
 // delete document for orphanage - expects JSON body { field, fileId }
 router.delete('/orphanage/document', authMiddleware.authMiddleware, authController.deleteOrphanageDocument)
 

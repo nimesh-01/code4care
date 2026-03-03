@@ -89,6 +89,13 @@ export const authAPI = {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
   },
+  uploadAdminIdDocumentPublic: (userId, file) => {
+    const formData = new FormData()
+    formData.append('document', file)
+    return api.post(`/auth/orphan-admin/${userId}/id-document`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
   deleteOrphanageDocument: (field, fileId) => api.delete('/auth/orphanage/document', { data: { field, fileId } }),
 }
 
@@ -217,6 +224,7 @@ export const donationAPI = {
   getById: (id) => donationApi.get(`/${id}`),
   getUserDonations: (userId) => donationApi.get(`/user/${userId}`),
   getOrphanageDonations: (orphanageId, params = {}) => donationApi.get(`/orphanage/${orphanageId}`, { params }),
+  getOrphanageChartStats: (orphanageId) => donationApi.get(`/orphanage/${orphanageId}/chart-stats`),
   downloadOrphanageReceipts: (orphanageId, params = {}) => donationApi.get(`/orphanage/${orphanageId}/receipts`, {
     params,
     responseType: 'blob',

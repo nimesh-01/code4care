@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { childrenAPI, donationAPI, appointmentAPI, helpRequestAPI } from '../../../../services/api'
+import { childrenAPI, donationAPI, appointmentAPI, helpRequestAPI, adminOrphanageAPI } from '../../../../services/api'
 import { useAuth } from '../../../../context/AuthContext'
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -114,16 +114,21 @@ const computeMetrics = (data) => {
     ? donationStats.totalDonations
     : fallbackDonationCount
 
-  const monthlyDonations = (data.donations || []).filter((donation) => {
-    const donationDateRaw = donation.date || donation.createdAt
-    if (!donationDateRaw) return false
-    const donationDate = new Date(donationDateRaw)
-    if (Number.isNaN(donationDate.getTime())) return false
-    const now = new Date()
-    return donationDate.getMonth() === now.getMonth() && donationDate.getFullYear() === now.getFullYear()
-  }).reduce((sum, donation) => sum + (donation.amount || 0), 0)
+  // Prefer server-computed monthly total; fall back to client-side calculation on paginated data
+  const serverMonthlyTotal = donationStats.monthlyTotal
+  const monthlyDonations = typeof serverMonthlyTotal === 'number' && serverMonthlyTotal > 0
+    ? serverMonthlyTotal
+    : (data.donations || []).filter((donation) => {
+        const donationDateRaw = donation.date || donation.createdAt
+        if (!donationDateRaw) return false
+        const donationDate = new Date(donationDateRaw)
+        if (Number.isNaN(donationDate.getTime())) return false
+        const now = new Date()
+        return donationDate.getMonth() === now.getMonth() && donationDate.getFullYear() === now.getFullYear()
+      }).reduce((sum, donation) => sum + (donation.amount || 0), 0)
 
-  const donationSeries = (data.monthlyDonations && data.monthlyDonations.length)
+  // Use server-computed 12-month trend; fall back to flat series only if no data at all
+  const donationSeries = (data.monthlyDonations && data.monthlyDonations.length === 12)
     ? data.monthlyDonations
     : createFlatDonationSeries()
 
@@ -189,28 +194,38 @@ export const useAdminDashboardData = () => {
       const requests = [
         childrenRequest,
         donationAPI.getOrphanageDonations(orphanageId),
+        donationAPI.getOrphanageChartStats(orphanageId),
         appointmentRequest,
         helpRequestAPI.getAll(),
+        adminOrphanageAPI.get(),
       ]
 
-      const [childrenRes, donationRes, appointmentRes, helpRes] = await Promise.allSettled(requests)
+      const [childrenRes, donationRes, chartStatsRes, appointmentRes, helpRes, orphanageRes] = await Promise.allSettled(requests)
 
       const pickArray = (result) => (result.status === 'fulfilled' ? extractArray(result.value.data) : null)
       const childrenList = pickArray(childrenRes)
       const appointmentList = pickArray(appointmentRes)
       const helpList = pickArray(helpRes)
       const donationPayload = donationRes.status === 'fulfilled' ? donationRes.value.data?.data : null
+      const chartStats = chartStatsRes.status === 'fulfilled' ? chartStatsRes.value.data?.data : null
+      const orphanageData = orphanageRes.status === 'fulfilled'
+        ? orphanageRes.value.data?.orphanage || orphanageRes.value.data?.data || orphanageRes.value.data
+        : null
 
       setData((prev) => ({
         ...prev,
         children: childrenList ? filterByOrphanage(childrenList) : prev.children,
         donations: donationPayload ? donationPayload.donations || [] : prev.donations,
         donationStats: donationPayload
-          ? { ...EMPTY_DONATION_STATS, ...donationPayload.stats }
+          ? { ...EMPTY_DONATION_STATS, ...donationPayload.stats, ...(chartStats || {}) }
           : prev.donationStats || EMPTY_DONATION_STATS,
         donationPagination: donationPayload
           ? { ...EMPTY_PAGINATION, ...donationPayload.pagination }
           : prev.donationPagination || EMPTY_PAGINATION,
+        monthlyDonations: chartStats?.monthlyTrend?.length
+          ? chartStats.monthlyTrend
+          : prev.monthlyDonations,
+        orphanageProfile: orphanageData ?? prev.orphanageProfile,
         // Backend already filters appointments by orphanageId for orphanAdmin
         appointments: appointmentList ?? prev.appointments,
         helpRequests: helpList ? filterByOrphanage(helpList) : prev.helpRequests,

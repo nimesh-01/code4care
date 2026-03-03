@@ -1,6 +1,8 @@
-import { FaChild, FaHandsHelping, FaUserShield, FaChartLine, FaCalendarCheck } from 'react-icons/fa'
+import { FaChild, FaHandsHelping, FaChartLine, FaCalendarCheck } from 'react-icons/fa'
 import { MdOutlineVolunteerActivism } from 'react-icons/md'
 import { useAdminDashboardContext } from './AdminLayout'
+import AdministratorIdentityCard from './components/AdministratorIdentityCard'
+import { useAuth } from '../../../context/AuthContext'
 
 const StatCard = ({ title, value, subtitle, accent }) => (
   <div className="rounded-3xl border border-white/5 bg-gradient-to-br from-slate-900/70 to-slate-900/30 p-6 shadow-2xl shadow-black/30">
@@ -63,6 +65,8 @@ const ActivityTimeline = ({ activities }) => (
 
 const DashboardOverview = () => {
   const { data, metrics } = useAdminDashboardContext()
+  const { user } = useAuth()
+  const showIdentityCard = user?.role === 'orphanAdmin' && user?.adminProfile
 
   const overviewStats = [
     {
@@ -97,6 +101,9 @@ const DashboardOverview = () => {
 
   return (
     <div className="space-y-10">
+      {showIdentityCard && (
+        <AdministratorIdentityCard user={user} adminProfile={user.adminProfile} variant="overview" />
+      )}
       <section>
         <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Dashboard</p>
         <h2 className="mt-2 text-3xl font-semibold text-white">Unified orphanage intelligence</h2>
@@ -173,7 +180,7 @@ const DashboardOverview = () => {
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border border-white/5 bg-slate-950/60 p-4">
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Verification</p>
-              <p className="text-lg font-semibold text-emerald-300">{data.orphanageProfile?.verificationStatus ?? 'pending'}</p>
+              <p className="text-lg font-semibold text-emerald-300">{data.orphanageProfile?.status ?? 'pending'}</p>
             </div>
             <div className="rounded-2xl border border-white/5 bg-slate-950/60 p-4">
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Registration</p>

@@ -9,6 +9,38 @@ const addressSchema = new mongoose.Schema({
     country: { type: String, default: 'India' }
 }, { _id: false })
 
+/* Admin Profile Schema (Embedded for orphan admins) */
+const adminProfileSchema = new mongoose.Schema({
+    designation: { type: String, trim: true },
+    gender: {
+        type: String,
+        enum: ['male', 'female', 'nonBinary', 'preferNotToSay', 'other'],
+        default: null
+    },
+    dateOfBirth: { type: Date },
+    alternateEmail: { type: String, lowercase: true, trim: true },
+    alternatePhone: { type: String, trim: true },
+    governmentIdType: {
+        type: String,
+        enum: ['aadhaar', 'pan', 'passport', 'voterId', 'drivingLicense', 'other'],
+        trim: true
+    },
+    governmentIdNumber: {
+        type: String,
+        trim: true,
+        uppercase: true
+    },
+    governmentIdDocument: {
+        url: { type: String },
+        fileId: { type: String }
+    },
+    emergencyContact: {
+        name: { type: String, trim: true },
+        relation: { type: String, trim: true },
+        phone: { type: String, trim: true }
+    }
+}, { _id: false })
+
 /* User Schema */
 const userSchema = new mongoose.Schema({
     username: {
@@ -80,11 +112,18 @@ const userSchema = new mongoose.Schema({
         default: null
     },
 
+    adminProfile: {
+        type: adminProfileSchema,
+        default: null
+    },
+
     createdAt: {
         type: Date,
         default: Date.now
     }
 })
+
+userSchema.index({ 'adminProfile.governmentIdNumber': 1 }, { unique: true, sparse: true })
 
 const User = mongoose.model('User', userSchema)
 module.exports = User

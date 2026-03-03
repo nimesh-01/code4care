@@ -337,8 +337,9 @@ const getOrphanageDonations = asyncHandler(async (req, res) => {
 
     // Calculate stats
     const mongoose = require('mongoose');
+    const oid = new mongoose.Types.ObjectId(orphanageId);
     const stats = await Donation.aggregate([
-        { $match: { orphanageId: new mongoose.Types.ObjectId(orphanageId), status: 'success' } },
+        { $match: { orphanageId: oid, status: 'success' } },
         {
             $group: {
                 _id: null,
@@ -348,9 +349,53 @@ const getOrphanageDonations = asyncHandler(async (req, res) => {
         }
     ]);
 
+    // Current-month total
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const monthlyResult = await Donation.aggregate([
+        {
+            $match: {
+                orphanageId: oid,
+                status: 'success',
+                createdAt: { $gte: monthStart, $lt: nextMonthStart }
+            }
+        },
+        { $group: { _id: null, monthlyTotal: { $sum: '$amount' }, monthlyCount: { $sum: 1 } } }
+    ]);
+
+    // Monthly trend — last 12 months
+    const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    const monthlyTrendRaw = await Donation.aggregate([
+        {
+            $match: {
+                orphanageId: oid,
+                status: 'success',
+                createdAt: { $gte: twelveMonthsAgo }
+            }
+        },
+        {
+            $group: {
+                _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
+                amount: { $sum: '$amount' }
+            }
+        }
+    ]);
+
+    // Build a 12-element series ordered from 12 months ago to current month
+    const monthlyTrend = [];
+    for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const year = d.getFullYear();
+        const month = d.getMonth() + 1; // 1-based
+        const match = monthlyTrendRaw.find((m) => m._id.year === year && m._id.month === month);
+        monthlyTrend.push({ month: MONTH_LABELS[d.getMonth()], amount: match ? match.amount : 0 });
+    }
+
     // Purpose-wise breakdown
     const purposeBreakdown = await Donation.aggregate([
-        { $match: { orphanageId: new mongoose.Types.ObjectId(orphanageId), status: 'success' } },
+        { $match: { orphanageId: oid, status: 'success' } },
         {
             $group: {
                 _id: '$purpose',
@@ -374,8 +419,11 @@ const getOrphanageDonations = asyncHandler(async (req, res) => {
             stats: {
                 totalAmount: stats[0]?.totalAmount || 0,
                 totalDonations: stats[0]?.totalDonations || 0,
+                monthlyTotal: monthlyResult[0]?.monthlyTotal || 0,
+                monthlyCount: monthlyResult[0]?.monthlyCount || 0,
                 purposeBreakdown
-            }
+            },
+            monthlyTrend
         }
     });
 });
@@ -794,6 +842,70 @@ const downloadReceipt = asyncHandler(async (req, res) => {
     fileStream.pipe(res);
 });
 
+/**
+ * @desc    Get chart stats (12-month trend) for an orphanage — uses .find() to avoid ObjectId mismatch
+ * @route   GET /donation/orphanage/:orphanageId/chart-stats
+ * @access  Protected (OrphanAdmin of that orphanage or SuperAdmin)
+ */
+const getOrphanageChartStats = asyncHandler(async (req, res) => {
+    const { orphanageId } = req.params;
+
+    if (!validators.isValidObjectId(orphanageId)) {
+        res.status(400);
+        throw new Error('Invalid Orphanage ID format');
+    }
+
+    if (req.user.role === 'orphanAdmin') {
+        if (!req.user.orphanageId || req.user.orphanageId.toString() !== orphanageId) {
+            res.status(403);
+            throw new Error('Not authorized');
+        }
+    } else if (req.user.role !== 'superAdmin') {
+        res.status(403);
+        throw new Error('Not authorized');
+    }
+
+    // Fetch ALL successful donations for this orphanage using .find() (Mongoose auto-casts orphanageId)
+    const allDonations = await Donation.find({
+        orphanageId,
+        status: 'success'
+    }).select('amount createdAt').lean();
+
+    // Build 12-month trend
+    const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const now = new Date();
+    const monthlyTrend = [];
+    let currentMonthTotal = 0;
+    let totalAmount = 0;
+
+    for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const nextD = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+        const monthAmount = allDonations
+            .filter((don) => {
+                const dt = new Date(don.createdAt);
+                return dt >= d && dt < nextD;
+            })
+            .reduce((sum, don) => sum + (don.amount || 0), 0);
+
+        monthlyTrend.push({ month: MONTH_LABELS[d.getMonth()], amount: monthAmount });
+
+        if (i === 0) currentMonthTotal = monthAmount;
+    }
+
+    totalAmount = allDonations.reduce((sum, don) => sum + (don.amount || 0), 0);
+
+    res.status(200).json({
+        success: true,
+        data: {
+            monthlyTrend,
+            monthlyTotal: currentMonthTotal,
+            totalAmount,
+            totalDonations: allDonations.length
+        }
+    });
+});
+
 module.exports = {
     initDonation,
     verifyDonation,
@@ -805,5 +917,6 @@ module.exports = {
     refundDonation,
     getAllDonations,
     generateReceipt,
-    downloadReceipt
+    downloadReceipt,
+    getOrphanageChartStats
 };

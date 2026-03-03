@@ -48,10 +48,12 @@ const Navbar = () => {
             
             {user ? (
               <div className="flex items-center gap-4">
-                <Link to="/profile" className="flex items-center gap-2 text-teal-700 dark:text-teal-400 hover:text-coral-500 dark:hover:text-coral-400 transition font-medium">
-                  <FaUserCircle className="text-xl" />
-                  <span>Profile</span>
-                </Link>
+                {user.role !== 'orphanAdmin' && (
+                  <Link to="/profile" className="flex items-center gap-2 text-teal-700 dark:text-teal-400 hover:text-coral-500 dark:hover:text-coral-400 transition font-medium">
+                    <FaUserCircle className="text-xl" />
+                    <span>Profile</span>
+                  </Link>
+                )}
                 {user.role === 'orphanAdmin' && (
                   <Link to="/dashboard/admin" className="text-teal-700 dark:text-teal-400 hover:text-coral-500 dark:hover:text-coral-400 transition font-medium">
                     Dashboard
@@ -112,7 +114,9 @@ const Navbar = () => {
               
               {user ? (
                 <>
-                  <MobileNavLink to="/profile" onClick={() => setIsOpen(false)}>Profile</MobileNavLink>
+                  {user.role !== 'orphanAdmin' && (
+                    <MobileNavLink to="/profile" onClick={() => setIsOpen(false)}>Profile</MobileNavLink>
+                  )}
                   {user.role === 'orphanAdmin' && (
                     <MobileNavLink to="/dashboard/admin" onClick={() => setIsOpen(false)}>Dashboard</MobileNavLink>
                   )}

@@ -31,6 +31,39 @@ const registerUserValidations = [
         .optional()
         .isIn(['superAdmin', 'orphanAdmin', 'volunteer', 'user'])
         .withMessage("Role must be either 'user' , 'volunteer' and 'orphanAdmin'"),
+    body('adminProfile.designation')
+        .if((value, { req }) => req.body.role === 'orphanAdmin')
+        .isString().withMessage('Designation must be a string')
+        .notEmpty().withMessage('Designation is required for orphanage admins'),
+    body('adminProfile.governmentIdType')
+        .if((value, { req }) => req.body.role === 'orphanAdmin')
+        .isIn(['aadhaar', 'pan', 'passport', 'voterId', 'drivingLicense', 'other'])
+        .withMessage('Government ID type is invalid'),
+    body('adminProfile.governmentIdNumber')
+        .if((value, { req }) => req.body.role === 'orphanAdmin')
+        .isString().withMessage('Government ID number must be a string')
+        .notEmpty().withMessage('Government ID number is required')
+        .matches(/^[A-Za-z0-9\-]{4,}$/).withMessage('Government ID number format is invalid'),
+    body('adminProfile.dateOfBirth')
+        .optional({ nullable: true })
+        .isISO8601().withMessage('Date of birth must be a valid date'),
+    body('adminProfile.alternateEmail')
+        .optional({ nullable: true })
+        .isEmail().withMessage('Alternate email must be valid'),
+    body('adminProfile.alternatePhone')
+        .optional({ nullable: true })
+        .isString().withMessage('Alternate phone must be a string'),
+    body('adminProfile.emergencyContact.name')
+        .if((value, { req }) => req.body.role === 'orphanAdmin')
+        .isString().withMessage('Emergency contact name must be a string')
+        .notEmpty().withMessage('Emergency contact name is required'),
+    body('adminProfile.emergencyContact.phone')
+        .if((value, { req }) => req.body.role === 'orphanAdmin')
+        .isString().withMessage('Emergency contact phone must be a string')
+        .notEmpty().withMessage('Emergency contact phone is required'),
+    body('adminProfile.emergencyContact.relation')
+        .optional({ nullable: true })
+        .isString().withMessage('Emergency contact relation must be a string'),
     respondWithValidationErrors
 ]
 const loginUserValidations = [
@@ -137,6 +170,16 @@ const updateUserValidations = [
     body('address.state').optional().isString().withMessage('State must be a string'),
     body('address.pincode').optional().isString().withMessage('Pincode must be a string'),
     body('address.country').optional().isString().withMessage('Country must be a string'),
+    body('adminProfile.designation').optional({ nullable: true }).isString().withMessage('Designation must be a string'),
+    body('adminProfile.gender').optional({ nullable: true }).toLowerCase().isIn(['male', 'female', 'non-binary', 'other', 'prefer-not-to-say']).withMessage('Gender is invalid'),
+    body('adminProfile.alternateEmail').optional({ nullable: true }).isEmail().withMessage('Alternate email must be valid'),
+    body('adminProfile.alternatePhone').optional({ nullable: true }).isString().withMessage('Alternate phone must be a string'),
+    body('adminProfile.governmentIdType').optional({ nullable: true }).toLowerCase().isIn(['aadhaar', 'pan', 'passport', 'voterid', 'drivinglicense', 'other']).withMessage('Government ID type is invalid'),
+    body('adminProfile.governmentIdNumber').optional({ nullable: true }).matches(/^[A-Za-z0-9\-]{4,}$/).withMessage('Government ID number format is invalid'),
+    body('adminProfile.dateOfBirth').optional({ nullable: true }).isISO8601().withMessage('Date of birth must be a valid date'),
+    body('adminProfile.emergencyContact.name').optional({ nullable: true }).isString().withMessage('Emergency contact name must be a string'),
+    body('adminProfile.emergencyContact.phone').optional({ nullable: true }).isString().withMessage('Emergency contact phone must be a string'),
+    body('adminProfile.emergencyContact.relation').optional({ nullable: true }).isString().withMessage('Emergency contact relation must be a string'),
     respondWithValidationErrors
 ];
 module.exports = {
