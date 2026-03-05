@@ -42,6 +42,32 @@ const HelpRequestSchema = new mongoose.Schema({
     completedAt: {
         type: Date,
         default: null
+    },
+    messages: {
+        type: [
+            {
+                senderId: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    required: true
+                },
+                senderRole: {
+                    type: String,
+                    enum: ['volunteer', 'orphanAdmin', 'superAdmin'],
+                    required: true
+                },
+                content: {
+                    type: String,
+                    required: true,
+                    trim: true,
+                    maxlength: 1000
+                },
+                createdAt: {
+                    type: Date,
+                    default: Date.now
+                }
+            }
+        ],
+        default: []
     }
 }, { timestamps: true });
 

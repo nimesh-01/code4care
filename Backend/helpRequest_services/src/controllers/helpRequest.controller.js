@@ -7,6 +7,22 @@ const sendNotification = ({ to, subject, message }) => {
     console.log('Notify', to, subject, message);
 };
 
+const sanitizeMessageContent = (value) => {
+    if (typeof value !== 'string') return '';
+    return value.trim();
+};
+
+const appendMessage = (helpRequest, senderId, senderRole, content) => {
+    if (!content) return;
+    helpRequest.messages = helpRequest.messages || [];
+    helpRequest.messages.push({
+        senderId,
+        senderRole,
+        content,
+        createdAt: new Date()
+    });
+};
+
 // Resolve orphanage ID from auth service for orphanage admins
 const resolveOrphanageId = async (req) => {
     try {
@@ -118,7 +134,16 @@ const getAllHelpRequests = async (req, res) => {
  */
 const acceptHelpRequest = async (req, res) => {
     const { id } = req.params;
-    const { id: volunteerId } = req.user;
+    const { id: volunteerId, role } = req.user;
+    const rawMessage = req.body?.message;
+    const note = sanitizeMessageContent(rawMessage);
+
+    if (rawMessage && note.length < 3) {
+        return res.status(400).json({ error: 'Message must be at least 3 characters' });
+    }
+    if (note.length > 1000) {
+        return res.status(400).json({ error: 'Message must be under 1000 characters' });
+    }
 
     try {
         const helpRequest = await HelpRequest.findById(id);
@@ -132,6 +157,9 @@ const acceptHelpRequest = async (req, res) => {
 
         helpRequest.status = 'accepted';
         helpRequest.assignedVolunteerId = volunteerId;
+        if (note) {
+            appendMessage(helpRequest, volunteerId, role, note);
+        }
         await helpRequest.save();
 
         // Notify orphanage admin
@@ -259,11 +287,66 @@ const getHelpRequestById = async (req, res) => {
     }
 };
 
+const addMessage = async (req, res) => {
+    const { id } = req.params;
+    const { id: userId, role } = req.user;
+    const rawMessage = req.body?.content || req.body?.message;
+    const note = sanitizeMessageContent(rawMessage);
+
+    if (!note) {
+        return res.status(400).json({ error: 'Message content is required' });
+    }
+    if (note.length < 3) {
+        return res.status(400).json({ error: 'Message must be at least 3 characters' });
+    }
+    if (note.length > 1000) {
+        return res.status(400).json({ error: 'Message must be under 1000 characters' });
+    }
+
+    try {
+        const helpRequest = await HelpRequest.findById(id);
+        if (!helpRequest) {
+            return res.status(404).json({ error: 'Help request not found' });
+        }
+
+        let allowed = false;
+
+        if (role === 'superAdmin') {
+            allowed = true;
+        } else if (role === 'volunteer') {
+            if (helpRequest.assignedVolunteerId && String(helpRequest.assignedVolunteerId) === String(userId)) {
+                allowed = true;
+            }
+        } else if (role === 'orphanAdmin') {
+            const orphanageId = await resolveOrphanageId(req);
+            if (orphanageId && String(orphanageId) === String(helpRequest.orphanageId)) {
+                allowed = true;
+            }
+        }
+
+        if (!allowed) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        appendMessage(helpRequest, userId, role, note);
+        await helpRequest.save();
+
+        res.json({
+            message: 'Message added successfully',
+            helpRequest
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to add message' });
+    }
+};
+
 module.exports = {
     createHelpRequest,
     getAllHelpRequests,
     acceptHelpRequest,
     completeHelpRequest,
     getVolunteerHelpRequests,
-    getHelpRequestById
+    getHelpRequestById,
+    addMessage
 };

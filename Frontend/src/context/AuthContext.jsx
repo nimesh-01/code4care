@@ -38,9 +38,11 @@ export const AuthProvider = ({ children }) => {
       }
       const response = await authAPI.getCurrentUser()
       setUser(response.data.user)
+      return response.data.user
     } catch (error) {
       console.error('Auth check failed:', error)
       setUser(null)
+      return null
     } finally {
       if (isInitialLoad) {
         setLoading(false)
@@ -55,7 +57,8 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', token)
     }
     setUser(userData)
-    return userData
+    const refreshedUser = await checkAuth(false)
+    return refreshedUser || userData
   }
 
   const register = async (userData) => {

@@ -197,12 +197,13 @@ helpApi.interceptors.response.use((response) => response, handle401Error)
 
 export const helpRequestAPI = {
   create: (data) => helpApi.post('/add', data),
-  getAll: () => helpApi.get('/all'),
+  getAll: (params = {}) => helpApi.get('/all', { params }),
   getById: (id) => helpApi.get(`/${id}`),
   // Volunteer actions
-  accept: (id) => helpApi.put(`/${id}/accept`),
+  accept: (id, data = {}) => helpApi.put(`/${id}/accept`, data),
   complete: (id) => helpApi.put(`/${id}/complete`),
-  getVolunteerRequests: () => helpApi.get('/volunteer'),
+  getVolunteerRequests: (params = {}) => helpApi.get('/volunteer', { params }),
+  addMessage: (id, data) => helpApi.post(`/${id}/messages`, data),
 }
 
 // Donation API (Donation Service - port 3006)

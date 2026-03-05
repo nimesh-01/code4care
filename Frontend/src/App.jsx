@@ -26,6 +26,7 @@ import VolunteersManagement from './pages/dashboard/admin/VolunteersManagement'
 import ReportsAnalytics from './pages/dashboard/admin/ReportsAnalytics'
 import SettingsPanel from './pages/dashboard/admin/SettingsPanel'
 import NotificationsPanel from './pages/dashboard/admin/NotificationsPanel'
+import VolunteerHelpDesk from './pages/dashboard/volunteer/VolunteerHelpDesk'
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -113,6 +114,16 @@ function App() {
           <Route path="settings" element={<SettingsPanel />} />
           <Route path="notifications" element={<NotificationsPanel />} />
         </Route>
+
+        {/* Volunteer help desk */}
+        <Route
+          path="/dashboard/volunteer"
+          element={
+            <ProtectedRoute allowedRoles={['volunteer']}>
+              <VolunteerHelpDesk />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Catch all */}
         <Route path="*" element={<Navigate to="/" replace />} />

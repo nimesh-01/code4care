@@ -84,5 +84,16 @@ router.get('/:id',
     controller.getHelpRequestById
 );
 
+/**
+ * 6️⃣ Add message to help request
+ * POST /help/:id/messages
+ * Access: Assigned Volunteer, Orphanage Admin (own orphanage), Super Admin
+ */
+router.post('/:id/messages',
+    authMiddleware,
+    permit('volunteer', 'orphanAdmin', 'superAdmin'),
+    controller.addMessage
+);
+
 
 module.exports = router;

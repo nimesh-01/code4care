@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback } from 'react'
 import { FaExclamationTriangle, FaLifeRing, FaPlusCircle, FaTimes, FaCheckCircle, FaUserShield } from 'react-icons/fa'
 import { useAdminDashboardContext } from './AdminLayout'
-import { helpRequestAPI } from '../../../services/api'
+import { authAPI, helpRequestAPI } from '../../../services/api'
 
 const REQUEST_TYPES = ['Teaching', 'Medical', 'Exam', 'Other']
 
@@ -28,6 +28,20 @@ const formatDateTime = (v) => {
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
+const formatVolunteerName = (user) => {
+  if (!user) return 'Volunteer'
+  const first = user.fullname?.firstname
+  const last = user.fullname?.lastname
+  const full = [first, last].filter(Boolean).join(' ')
+  return full || user.username || user.email || 'Volunteer'
+}
+
+const formatAddress = (address) => {
+  if (!address) return '—'
+  const parts = [address.street, address.city, address.state, address.pincode, address.country].filter(Boolean)
+  return parts.length ? parts.join(', ') : '—'
+}
+
 const HelpRequestsManagement = () => {
   const { data, refresh } = useAdminDashboardContext()
   const [statusFilter, setStatusFilter] = useState('all')
@@ -38,6 +52,10 @@ const HelpRequestsManagement = () => {
   const [submitting, setSubmitting] = useState(false)
   const [actionError, setActionError] = useState(null)
   const [actionSuccess, setActionSuccess] = useState(null)
+  const [volunteerModalOpen, setVolunteerModalOpen] = useState(false)
+  const [volunteerProfile, setVolunteerProfile] = useState(null)
+  const [volunteerLoading, setVolunteerLoading] = useState(false)
+  const [volunteerError, setVolunteerError] = useState(null)
 
   const helpRequests = useMemo(() => {
     const list = Array.isArray(data.helpRequests) ? data.helpRequests : []
@@ -106,6 +124,29 @@ const HelpRequestsManagement = () => {
       setSubmitting(false)
     }
   }, [formData, refresh])
+
+  const handleViewVolunteer = useCallback(async (volunteerId) => {
+    if (!volunteerId) return
+    setVolunteerError(null)
+    setVolunteerProfile(null)
+    setVolunteerModalOpen(true)
+    setVolunteerLoading(true)
+    try {
+      const response = await authAPI.getUserById(volunteerId)
+      setVolunteerProfile(response.data?.user || null)
+    } catch (err) {
+      setVolunteerError(err?.response?.data?.message || err?.response?.data?.error || 'Failed to load volunteer profile')
+    } finally {
+      setVolunteerLoading(false)
+    }
+  }, [])
+
+  const closeVolunteerModal = () => {
+    setVolunteerModalOpen(false)
+    setVolunteerProfile(null)
+    setVolunteerError(null)
+    setVolunteerLoading(false)
+  }
 
   return (
     <div className="space-y-8">
@@ -203,7 +244,18 @@ const HelpRequestsManagement = () => {
                   <div className="shrink-0 text-right text-xs text-teal-500 dark:text-cream-400">
                     <p>Created {formatDateTime(request.createdAt)}</p>
                     {request.assignedVolunteerId && (
-                      <p className="mt-1">Volunteer {formatShortId(request.assignedVolunteerId)}</p>
+                      <div className="mt-1 flex flex-col items-end gap-1 text-xs text-teal-500 dark:text-cream-400">
+                        <p>Volunteer {formatShortId(request.assignedVolunteerId)}</p>
+                        {['accepted', 'completed'].includes(request.status) && (
+                          <button
+                            type="button"
+                            onClick={() => handleViewVolunteer(request.assignedVolunteerId)}
+                            className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 underline-offset-2 hover:underline dark:text-emerald-300 dark:hover:text-emerald-100"
+                          >
+                            View profile
+                          </button>
+                        )}
+                      </div>
                     )}
                     {request.completedAt && (
                       <p className="mt-1">Done {formatDateTime(request.completedAt)}</p>
@@ -357,8 +409,82 @@ const HelpRequestsManagement = () => {
           </div>
         </div>
       )}
+
+      {volunteerModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+          <div className="relative w-full max-w-xl rounded-3xl border border-cream-200 bg-white p-8 shadow-2xl dark:border-dark-700 dark:bg-dark-900">
+            <button
+              onClick={closeVolunteerModal}
+              className="absolute right-4 top-4 text-teal-400 hover:text-teal-700 dark:text-cream-400 dark:hover:text-cream-100"
+              aria-label="Close volunteer profile"
+            >
+              <FaTimes className="text-lg" />
+            </button>
+
+            <p className="text-xs uppercase tracking-[0.4em] text-teal-500 dark:text-cream-300">Volunteer</p>
+            <h3 className="mt-2 text-2xl font-semibold text-teal-900 dark:text-cream-50">Profile overview</h3>
+
+            <div className="mt-6 max-h-[70vh] overflow-y-auto pr-2 space-y-6">
+              {volunteerLoading && (
+                <div className="flex justify-center py-6">
+                  <div className="h-12 w-12 animate-spin rounded-full border-4 border-teal-100 border-t-teal-500"></div>
+                </div>
+              )}
+
+              {!volunteerLoading && volunteerError && (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-400/40 dark:bg-rose-500/10 dark:text-rose-100">
+                  {volunteerError}
+                </div>
+              )}
+
+              {!volunteerLoading && !volunteerError && volunteerProfile && (
+                <div className="space-y-5">
+                  <div className="rounded-2xl border border-cream-200 bg-cream-50 px-5 py-4 dark:border-dark-700 dark:bg-dark-800/70">
+                  <p className="text-sm uppercase tracking-[0.3em] text-teal-500 dark:text-cream-300">Name</p>
+                  <p className="mt-1 text-xl font-semibold text-teal-900 dark:text-cream-50">{formatVolunteerName(volunteerProfile)}</p>
+                  <p className="text-sm text-teal-600 dark:text-cream-300">
+                    {(capitalize(volunteerProfile.role) || 'Volunteer')} • {(capitalize(volunteerProfile.status) || 'Active')}
+                  </p>
+                </div>
+
+                  <section>
+                    <p className="text-xs uppercase tracking-[0.3em] text-teal-500 dark:text-cream-300">Contact & account</p>
+                    <div className="mt-3 grid gap-4 md:grid-cols-2">
+                      <ProfileField label="Email" value={volunteerProfile.email || '—'} />
+                      <ProfileField label="Phone" value={volunteerProfile.phone || '—'} />
+                      <ProfileField label="Username" value={volunteerProfile.username || '—'} />
+                      <ProfileField label="Account status" value={capitalize(volunteerProfile.status) || 'Active'} />
+                      <ProfileField label="Role" value={capitalize(volunteerProfile.role) || 'Volunteer'} />
+                      <ProfileField label="Joined" value={formatDateTime(volunteerProfile.createdAt)} />
+                    </div>
+                  </section>
+
+                  <section>
+                    <p className="text-xs uppercase tracking-[0.3em] text-teal-500 dark:text-cream-300">Address</p>
+                    <div className="mt-3 grid gap-4 md:grid-cols-2">
+                      <ProfileField label="Street" value={volunteerProfile.address?.street || '—'} />
+                      <ProfileField label="City" value={volunteerProfile.address?.city || '—'} />
+                      <ProfileField label="State" value={volunteerProfile.address?.state || '—'} />
+                      <ProfileField label="Postal code" value={volunteerProfile.address?.pincode || '—'} />
+                      <ProfileField label="Country" value={volunteerProfile.address?.country || '—'} />
+                      <ProfileField label="Full address" value={formatAddress(volunteerProfile.address)} className="md:col-span-2" />
+                    </div>
+                  </section>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+
+const ProfileField = ({ label, value, className = '' }) => (
+  <div className={`rounded-2xl border border-cream-200 bg-white px-4 py-3 dark:border-dark-700 dark:bg-dark-800/60 ${className}`}>
+    <p className="text-xs uppercase tracking-[0.25em] text-teal-500 dark:text-cream-300">{label}</p>
+    <p className="mt-1 text-sm font-semibold text-teal-900 dark:text-cream-50">{value || '—'}</p>
+  </div>
+)
 
 export default HelpRequestsManagement

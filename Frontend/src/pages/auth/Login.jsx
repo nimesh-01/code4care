@@ -5,6 +5,21 @@ import { toast } from 'react-toastify'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
 
+const resolveDisplayName = (user) => {
+  if (!user) return 'User'
+  const full = user.fullname
+  if (typeof full === 'string' && full.trim()) return full.trim()
+  if (full && typeof full === 'object') {
+    const first = full.firstname || full.firstName || ''
+    const last = full.lastname || full.lastName || ''
+    const combined = `${first} ${last}`.trim()
+    if (combined) return combined
+  }
+  if (user.username) return user.username
+  if (user.email) return user.email
+  return 'User'
+}
+
 const Login = () => {
   const [formData, setFormData] = useState({
     emailOrUsername: '',
@@ -50,7 +65,7 @@ const Login = () => {
         : { username: formData.emailOrUsername, password: formData.password }
 
       const user = await login(credentials)
-      toast.success(`Welcome back, ${user.fullname || user.username || 'User'}!`)
+      toast.success(`Welcome back, ${resolveDisplayName(user)}!`)
       
       // Check if there's an intended redirect URL (user was redirected here from a protected page)
       const intendedUrl = sessionStorage.getItem('loginRedirectUrl')

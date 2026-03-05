@@ -57,6 +57,11 @@ const Navbar = () => {
                     <span>Profile</span>
                   </Link>
                 )}
+                {normalizedRole === 'volunteer' && (
+                  <Link to="/dashboard/volunteer" className="text-teal-700 dark:text-teal-400 hover:text-coral-500 dark:hover:text-coral-400 transition font-medium">
+                    Volunteer Desk
+                  </Link>
+                )}
                 {user.role === 'orphanAdmin' && (
                   <Link to="/dashboard/admin" className="text-teal-700 dark:text-teal-400 hover:text-coral-500 dark:hover:text-coral-400 transition font-medium">
                     Dashboard
@@ -122,6 +127,9 @@ const Navbar = () => {
                 <>
                   {user.role !== 'orphanAdmin' && (
                     <MobileNavLink to="/profile" onClick={() => setIsOpen(false)}>Profile</MobileNavLink>
+                  )}
+                  {normalizedRole === 'volunteer' && (
+                    <MobileNavLink to="/dashboard/volunteer" onClick={() => setIsOpen(false)}>Volunteer Desk</MobileNavLink>
                   )}
                   {user.role === 'orphanAdmin' && (
                     <MobileNavLink to="/dashboard/admin" onClick={() => setIsOpen(false)}>Dashboard</MobileNavLink>
