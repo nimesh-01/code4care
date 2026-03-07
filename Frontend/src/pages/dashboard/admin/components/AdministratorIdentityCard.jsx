@@ -45,7 +45,9 @@ const AdministratorIdentityCard = ({
   onPhotoSelected,
   uploadingPhoto = false,
 }) => {
-  if (!user || !adminProfile) return null
+  if (!user) return null
+
+  const profile = adminProfile || {}
 
   const fileInputRef = useRef(null)
   const fullName = useMemo(() => {
@@ -120,7 +122,7 @@ const AdministratorIdentityCard = ({
               <FaUserShield className="text-coral-300" />
               {fullName}
             </h3>
-            <p className="text-sm text-slate-300">{adminProfile.designation || 'Designation not specified'}</p>
+            <p className="text-sm text-slate-300">{profile.designation || 'Designation not specified'}</p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -151,7 +153,7 @@ const AdministratorIdentityCard = ({
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-slate-400">Alternate phone</dt>
-              <dd>{adminProfile.alternatePhone || 'Not provided'}</dd>
+              <dd>{profile.alternatePhone || 'Not provided'}</dd>
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-slate-400">Primary email</dt>
@@ -159,15 +161,15 @@ const AdministratorIdentityCard = ({
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-slate-400">Alternate email</dt>
-              <dd className="truncate text-right">{adminProfile.alternateEmail || 'Not provided'}</dd>
+              <dd className="truncate text-right">{profile.alternateEmail || 'Not provided'}</dd>
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-slate-400">Gender</dt>
-              <dd className="capitalize">{toTitleCase(adminProfile.gender) || 'Not provided'}</dd>
+              <dd className="capitalize">{toTitleCase(profile.gender) || 'Not provided'}</dd>
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-slate-400">Date of birth</dt>
-              <dd>{formatDate(adminProfile.dateOfBirth)}</dd>
+              <dd>{formatDate(profile.dateOfBirth)}</dd>
             </div>
           </dl>
         </div>
@@ -178,18 +180,18 @@ const AdministratorIdentityCard = ({
           <dl className="space-y-2 text-slate-200">
             <div className="flex justify-between gap-3">
               <dt className="text-slate-400">Govt. ID</dt>
-              <dd className="capitalize">{resolveGovernmentIdLabel(adminProfile.governmentIdType)}</dd>
+              <dd className="capitalize">{resolveGovernmentIdLabel(profile.governmentIdType)}</dd>
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-slate-400">ID number</dt>
-              <dd className="font-mono text-xs">{adminProfile.governmentIdNumber || 'Not provided'}</dd>
+              <dd className="font-mono text-xs">{profile.governmentIdNumber || 'Not provided'}</dd>
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-slate-400">ID proof file</dt>
               <dd>
-                {adminProfile.governmentIdDocument?.url ? (
+                {profile.governmentIdDocument?.url ? (
                   <a
-                    href={adminProfile.governmentIdDocument.url}
+                    href={profile.governmentIdDocument.url}
                     target="_blank"
                     rel="noreferrer"
                     className="text-cyan-300 hover:text-cyan-100"
@@ -204,9 +206,9 @@ const AdministratorIdentityCard = ({
             <div className="flex justify-between gap-3">
               <dt className="text-slate-400">Emergency contact</dt>
               <dd className="text-right">
-                <p className="font-semibold">{adminProfile.emergencyContact?.name || 'Not provided'}</p>
-                <p className="text-xs text-slate-400">{adminProfile.emergencyContact?.relation || 'Relation N/A'}</p>
-                <p>{adminProfile.emergencyContact?.phone || 'Phone N/A'}</p>
+                <p className="font-semibold">{profile.emergencyContact?.name || 'Not provided'}</p>
+                <p className="text-xs text-slate-400">{profile.emergencyContact?.relation || 'Relation N/A'}</p>
+                <p>{profile.emergencyContact?.phone || 'Phone N/A'}</p>
               </dd>
             </div>
           </dl>

@@ -58,3 +58,116 @@
 .animate-float {
   animation: float 3s ease-in-out infinite;
 }
+
+/* Toast notifications */
+.notification-container {
+  position: fixed !important;
+  top: 1.5rem !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: min(420px, calc(100% - 2rem)) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  z-index: 9999 !important;
+  pointer-events: none;
+}
+
+.notification-container .Toastify__toast {
+  pointer-events: auto;
+}
+
+.notification-toast {
+  backdrop-filter: blur(18px);
+  border-width: 1px;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.notification-close {
+  margin-left: auto;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(20, 184, 166, 0.2);
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  background: transparent;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.notification-close:hover {
+  border-color: rgba(248, 111, 77, 0.6);
+  transform: translateY(-1px);
+}
+
+.notification-body {
+  font-size: 0.95rem;
+  line-height: 1.4;
+  font-weight: 600;
+  flex: 1;
+  margin-right: 0.5rem;
+}
+
+.notification-dot {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 9999px;
+  margin-top: 0;
+  display: inline-block;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 6px rgba(248, 111, 77, 0.15);
+}
+
+.notification-dot[data-type="success"] {
+  background: linear-gradient(135deg, #2dd4bf, #14b8a6);
+}
+
+.notification-dot[data-type="error"] {
+  background: linear-gradient(135deg, #f87171, #ef4444);
+}
+
+.notification-dot[data-type="info"] {
+  background: linear-gradient(135deg, #38bdf8, #2563eb);
+}
+
+.notification-dot[data-type="warning"] {
+  background: linear-gradient(135deg, #facc15, #f97316);
+}
+
+.notification-progress {
+  background: linear-gradient(90deg, #f86f4d, #14b8a6) !important;
+  height: 4px !important;
+  border-radius: 9999px;
+}
+
+.notification-container.notification-light .notification-toast {
+  background: linear-gradient(135deg, #ffffff 10%, #fef6f1 100%);
+  border-color: #ffe0d2;
+  color: #0f4c46;
+  box-shadow: 0 20px 40px rgba(20, 184, 166, 0.15);
+}
+
+.notification-container.notification-light .notification-dot {
+  box-shadow: 0 0 0 6px rgba(20, 184, 166, 0.12);
+}
+
+.notification-container.notification-light .notification-close {
+  border-color: rgba(248, 111, 77, 0.25);
+}
+
+.notification-container.notification-light .notification-progress {
+  background: linear-gradient(90deg, #f97316, #0ea5e9) !important;
+}
+
+@media (max-width: 640px) {
+  .notification-container {
+    width: 100% !important;
+    left: 50% !important;
+    transform: translate(-50%, 0) !important;
+    padding: 0 0.75rem !important;
+  }
+}

@@ -7,7 +7,8 @@ const {
     markAsRead,
     getOrCreateConversation,
     deleteMessage,
-    getUnreadCount
+    getUnreadCount,
+    deleteConversation
 } = require('../controllers/chat.controller');
 const { authMiddleware, chatAccessMiddleware } = require('../middlewares/auth.middleware');
 
@@ -56,6 +57,13 @@ router.patch('/read/:conversationId', markAsRead);
  * @access  Only message sender
  */
 router.delete('/message/:messageId', deleteMessage);
+
+/**
+ * @route   DELETE /chat/conversation/:conversationId
+ * @desc    Delete entire conversation
+ * @access  Only participants
+ */
+router.delete('/conversation/:conversationId', deleteConversation);
 
 /**
  * @route   GET /chat/unread

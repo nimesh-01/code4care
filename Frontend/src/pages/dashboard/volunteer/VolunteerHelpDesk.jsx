@@ -190,7 +190,7 @@ const VolunteerHelpDesk = () => {
     <div className="min-h-screen bg-cream-50 pb-10 dark:bg-dark-950">
       <Navbar />
 
-      <main className="mx-auto max-w-6xl px-4 pt-10 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-6xl px-4 pt-28 pb-12 sm:px-6 lg:px-8">
         <header className="flex flex-col gap-4 rounded-3xl border border-cream-200 bg-white/90 p-6 shadow-sm dark:border-dark-700 dark:bg-dark-900/70 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.4em] text-teal-500 dark:text-cream-300">Volunteer desk</p>

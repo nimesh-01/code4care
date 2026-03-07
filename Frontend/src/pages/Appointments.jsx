@@ -13,6 +13,7 @@ import {
 import { toast } from 'react-toastify'
 import Navbar from '../components/Navbar'
 import { appointmentAPI, orphanagesAPI, childrenAPI } from '../services/api'
+import { useConfirm } from '../context/ConfirmContext'
 
 const statusMeta = {
   pending: {
@@ -148,6 +149,7 @@ const Appointments = () => {
   const [childLookup, setChildLookup] = useState({})
   const [cancellingId, setCancellingId] = useState(null)
   const [confirmingAction, setConfirmingAction] = useState({ id: null, action: null })
+  const confirmAction = useConfirm()
 
   useEffect(() => {
     fetchAppointments()
@@ -232,9 +234,14 @@ const Appointments = () => {
     const status = (appointment.status || '').toLowerCase()
     if (status !== 'pending') return
 
-    if (!window.confirm('Cancel this appointment request?')) {
-      return
-    }
+    const proceed = await confirmAction({
+      title: 'Cancel this appointment?',
+      message: 'Your request will be withdrawn and the orphanage will be notified.',
+      confirmLabel: 'Cancel request',
+      cancelLabel: 'Keep request',
+      tone: 'danger',
+    })
+    if (!proceed) return
 
     try {
       setCancellingId(appointment._id || appointment.id)
@@ -253,8 +260,15 @@ const Appointments = () => {
     const status = (appointment.status || '').toLowerCase()
     if (status !== 'needsconfirmation') return
 
-    if (action === 'cancel' && !window.confirm('Decline the updated schedule? This cannot be undone.')) {
-      return
+    if (action === 'cancel') {
+      const decline = await confirmAction({
+        title: 'Decline schedule update?',
+        message: 'This action cannot be undone and the slot may be offered to someone else.',
+        confirmLabel: 'Decline',
+        cancelLabel: 'Go back',
+        tone: 'danger',
+      })
+      if (!decline) return
     }
 
     const appointmentId = appointment._id || appointment.id

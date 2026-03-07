@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   FaBuilding, FaMapMarkerAlt, FaPhone, FaEnvelope, FaHeart,
   FaArrowLeft, FaCheckCircle, FaClock, FaChild, FaFileAlt,
-  FaHandHoldingHeart, FaIdCard, FaGlobe, FaExclamationTriangle, FaCalendarAlt
+  FaHandHoldingHeart, FaIdCard, FaGlobe, FaExclamationTriangle, FaCalendarAlt, FaComments
 } from 'react-icons/fa'
 import { toast } from 'react-toastify'
 import Navbar from '../components/Navbar'
@@ -358,6 +358,29 @@ const OrphanageProfile = () => {
                       <p className="mt-2 text-xs text-teal-400 dark:text-cream-400">
                         Bring a valid ID on the day of your visit for verification.
                       </p>
+                    </div>
+                  )}
+
+                  {user && user.role !== 'orphanAdmin' && orphanage.orphanAdmin && (
+                    <div className="mt-6 rounded-2xl border border-cream-200 bg-white p-6 shadow-sm dark:border-dark-700 dark:bg-dark-800">
+                      <div className="mb-3 flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-coral-50 dark:bg-coral-900/20">
+                          <FaComments className="text-xl text-coral-500" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-teal-900 dark:text-cream-50">Chat with Admin</h3>
+                          <p className="text-sm text-teal-500 dark:text-cream-300">Message {orphanage.name}</p>
+                        </div>
+                      </div>
+                      <p className="text-sm text-teal-600 dark:text-cream-300">
+                        Have questions? Send a direct message to the orphanage administrator.
+                      </p>
+                      <Link
+                        to={`/chat?receiverId=${typeof orphanage.orphanAdmin === 'object' ? orphanage.orphanAdmin._id : orphanage.orphanAdmin}&receiverRole=orphanAdmin`}
+                        className="mt-4 block w-full rounded-xl bg-coral-500 py-3 text-center text-white font-semibold hover:bg-coral-600 transition"
+                      >
+                        Start Chat
+                      </Link>
                     </div>
                   )}
                 </div>

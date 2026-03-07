@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { FaHeart, FaBars, FaTimes, FaSun, FaMoon, FaUserCircle } from 'react-icons/fa'
+import { FaHeart, FaBars, FaTimes, FaSun, FaMoon, FaUserCircle, FaComments } from 'react-icons/fa'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 
@@ -57,6 +57,10 @@ const Navbar = () => {
                     <span>Profile</span>
                   </Link>
                 )}
+                <Link to="/chat" className="flex items-center gap-1 text-teal-700 dark:text-teal-400 hover:text-coral-500 dark:hover:text-coral-400 transition font-medium">
+                  <FaComments className="text-sm" />
+                  <span>Chat</span>
+                </Link>
                 {normalizedRole === 'volunteer' && (
                   <Link to="/dashboard/volunteer" className="text-teal-700 dark:text-teal-400 hover:text-coral-500 dark:hover:text-coral-400 transition font-medium">
                     Volunteer Desk
@@ -128,6 +132,7 @@ const Navbar = () => {
                   {user.role !== 'orphanAdmin' && (
                     <MobileNavLink to="/profile" onClick={() => setIsOpen(false)}>Profile</MobileNavLink>
                   )}
+                  <MobileNavLink to="/chat" onClick={() => setIsOpen(false)}>Chat</MobileNavLink>
                   {normalizedRole === 'volunteer' && (
                     <MobileNavLink to="/dashboard/volunteer" onClick={() => setIsOpen(false)}>Volunteer Desk</MobileNavLink>
                   )}

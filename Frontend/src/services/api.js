@@ -241,6 +241,33 @@ export const donationAPI = {
   downloadReceipt: (id) => donationApi.get(`/${id}/receipt`, { responseType: 'blob' }),
 }
 
+// Chat API (Chat Service - port 3004)
+const chatApi = axios.create({
+  baseURL: import.meta.env.VITE_CHAT_API_URL || '/api/chat',
+  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
+})
+chatApi.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token')
+    if (token) config.headers.Authorization = `Bearer ${token}`
+    return config
+  },
+  (error) => Promise.reject(error)
+)
+chatApi.interceptors.response.use((response) => response, handle401Error)
+
+export const chatAPI = {
+  getConversations: (params = {}) => chatApi.get('/conversations', { params }),
+  getOrCreateConversation: (data) => chatApi.post('/conversation', data),
+  getChatHistory: (conversationId, params = {}) => chatApi.get(`/history/${conversationId}`, { params }),
+  sendMessage: (data) => chatApi.post('/message', data),
+  markAsRead: (conversationId) => chatApi.patch(`/read/${conversationId}`),
+  deleteMessage: (messageId) => chatApi.delete(`/message/${messageId}`),
+  deleteConversation: (conversationId) => chatApi.delete(`/conversation/${conversationId}`),
+  getUnreadCount: () => chatApi.get('/unread'),
+}
+
 // Admin Orphanage API (self management)
 export const adminOrphanageAPI = {
   get: () => api.get('/auth/orphanage'),

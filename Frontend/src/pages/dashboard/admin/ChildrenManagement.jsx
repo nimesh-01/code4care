@@ -4,6 +4,7 @@ import { FaSearch, FaPlus, FaFilter, FaTrashAlt, FaEdit, FaTimes, FaEye } from '
 import { toast } from 'react-toastify'
 import { useAdminDashboardContext } from './AdminLayout'
 import { childrenAPI } from '../../../services/api'
+import { useConfirm } from '../../../context/ConfirmContext'
 
 const baseForm = {
   name: '',
@@ -62,6 +63,7 @@ const TextArea = (props) => (
 
 const ChildrenManagement = () => {
   const { data, refresh } = useAdminDashboardContext()
+  const confirmAction = useConfirm()
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('all')
   const [gender, setGender] = useState('all')
@@ -163,7 +165,13 @@ const ChildrenManagement = () => {
     const childId = getChildId(child)
     if (!childId) return
     const label = child.name || child.fullName || 'this child'
-    const confirmDelete = window.confirm(`Delete ${label}? This action cannot be undone.`)
+    const confirmDelete = await confirmAction({
+      title: 'Remove child profile?',
+      message: `Delete ${label}? This cannot be undone and will remove their records from SoulConnect.`,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Keep record',
+      tone: 'danger',
+    })
     if (!confirmDelete) return
     try {
       await childrenAPI.delete(childId)
@@ -173,7 +181,7 @@ const ChildrenManagement = () => {
       const message = error?.response?.data?.message || 'Failed to delete child'
       toast.error(message)
     }
-  }, [refresh])
+  }, [confirmAction, refresh])
 
   const formatUpdatedAt = (value) => {
     if (!value) return 'Not available'

@@ -4,8 +4,25 @@ const jwt = require('jsonwebtoken');
  * Authentication middleware for REST API
  * Validates JWT token from cookies
  */
+function extractToken(source) {
+    if (!source) return null;
+    const value = source.trim();
+    if (!value) return null;
+    if (value.startsWith('Bearer ')) {
+        return value.slice(7).trim();
+    }
+    return value;
+}
+
+function getCookieToken(cookieHeader) {
+    if (!cookieHeader) return null;
+    const match = cookieHeader.match(/token=([^;]+)/);
+    return match ? match[1] : null;
+}
+
 async function authMiddleware(req, res, next) {
-    const token = req.cookies.token;
+    const headerToken = extractToken(req.headers?.authorization);
+    const token = req.cookies?.token || headerToken;
 
     if (!token) {
         return res.status(401).json({
@@ -32,9 +49,11 @@ async function authMiddleware(req, res, next) {
  */
 function socketAuthMiddleware(socket, next) {
     try {
-        // Get token from handshake auth or cookies
-        const token = socket.handshake.auth?.token || 
-                      socket.handshake.headers?.cookie?.split('token=')[1]?.split(';')[0];
+        // Get token from handshake auth, Authorization header, or cookies
+        const token =
+            socket.handshake.auth?.token ||
+            extractToken(socket.handshake.headers?.authorization) ||
+            getCookieToken(socket.handshake.headers?.cookie);
 
         if (!token) {
             return next(new Error('Authentication error - No token provided'));

@@ -319,7 +319,7 @@ const SettingsPanel = () => {
         <p className="text-sm text-slate-400">Update legal information, upload compliance documents, and manage secure access.</p>
       </header>
 
-      {user?.role === 'orphanAdmin' && adminProfile && (
+      {user?.role === 'orphanAdmin' && (
         <AdministratorIdentityCard
           user={user}
           adminProfile={adminProfile}

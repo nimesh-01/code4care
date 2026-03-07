@@ -3,6 +3,15 @@ const Conversation = require('../models/conversation.model');
 const { validateChatPermission } = require('../middlewares/auth.middleware');
 const { getIO, getOnlineUsers } = require('../socket/socket');
 
+const buildParticipantsKeyFromConversation = (participants = []) => {
+    const ids = participants
+        .map((participant) => participant?.participantId?.toString?.() || participant?.participantId?.toString() || '')
+        .filter(Boolean)
+        .sort();
+    if (ids.length < 2) return null;
+    return ids.join(':');
+};
+
 /**
  * Send a new message
  * POST /chat/message
@@ -255,6 +264,29 @@ async function getConversations(req, res) {
             .limit(parseInt(limit))
             .lean();
 
+        const deduped = [];
+        const keyIndexMap = new Map();
+
+        conversations.forEach((conv) => {
+            const key = buildParticipantsKeyFromConversation(conv.participants);
+            if (!key) {
+                deduped.push(conv);
+                return;
+            }
+            if (!keyIndexMap.has(key)) {
+                keyIndexMap.set(key, deduped.length);
+                deduped.push(conv);
+            } else {
+                const index = keyIndexMap.get(key);
+                const existing = deduped[index];
+                const existingDate = new Date(existing?.updatedAt || existing?.createdAt || 0);
+                const candidateDate = new Date(conv?.updatedAt || conv?.createdAt || 0);
+                if (candidateDate > existingDate) {
+                    deduped[index] = conv;
+                }
+            }
+        });
+
         // Get total count
         const totalConversations = await Conversation.countDocuments({
             'participants.participantId': userId,
@@ -262,7 +294,7 @@ async function getConversations(req, res) {
         });
 
         // Format response with other participant info and unread count
-        const formattedConversations = conversations.map(conv => {
+        const formattedConversations = deduped.map(conv => {
             const otherParticipant = conv.participants.find(
                 p => p.participantId.toString() !== userId
             );
@@ -284,7 +316,7 @@ async function getConversations(req, res) {
                     currentPage: parseInt(page),
                     totalPages: Math.ceil(totalConversations / parseInt(limit)),
                     totalConversations,
-                    hasMore: skip + conversations.length < totalConversations
+                    hasMore: skip + deduped.length < totalConversations
                 }
             }
         });
@@ -502,6 +534,63 @@ async function deleteMessage(req, res) {
 }
 
 /**
+ * Delete an entire conversation (hard delete for all participants)
+ * DELETE /chat/conversation/:conversationId
+ */
+async function deleteConversation(req, res) {
+    try {
+        const { conversationId } = req.params;
+        const userId = req.user.id;
+
+        const conversation = await Conversation.findById(conversationId);
+
+        if (!conversation) {
+            return res.status(404).json({
+                success: false,
+                message: 'Conversation not found'
+            });
+        }
+
+        if (!conversation.isParticipant(userId)) {
+            return res.status(403).json({
+                success: false,
+                message: 'You are not a participant in this conversation'
+            });
+        }
+
+        const participantIds = conversation.participants.map((p) => p.participantId.toString());
+
+        await Message.deleteMany({ conversationId });
+        await conversation.deleteOne();
+
+        const io = getIO();
+        const onlineUsers = getOnlineUsers();
+        participantIds.forEach((participantId) => {
+            const socketId = onlineUsers.get(participantId);
+            if (socketId) {
+                io.to(socketId).emit('conversationDeleted', {
+                    conversationId,
+                    deletedBy: userId
+                });
+            }
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Conversation deleted successfully'
+        });
+
+    } catch (error) {
+        console.error('Delete conversation error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to delete conversation',
+            error: error.message
+        });
+    }
+}
+
+/**
  * Get unread messages count
  * GET /chat/unread
  */
@@ -548,5 +637,6 @@ module.exports = {
     markAsRead,
     getOrCreateConversation,
     deleteMessage,
-    getUnreadCount
+    getUnreadCount,
+    deleteConversation
 };

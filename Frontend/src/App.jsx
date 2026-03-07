@@ -27,6 +27,8 @@ import ReportsAnalytics from './pages/dashboard/admin/ReportsAnalytics'
 import SettingsPanel from './pages/dashboard/admin/SettingsPanel'
 import NotificationsPanel from './pages/dashboard/admin/NotificationsPanel'
 import VolunteerHelpDesk from './pages/dashboard/volunteer/VolunteerHelpDesk'
+import Chat from './pages/Chat'
+import ParticipantProfile from './pages/dashboard/admin/ParticipantProfile'
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -114,6 +116,25 @@ function App() {
           <Route path="settings" element={<SettingsPanel />} />
           <Route path="notifications" element={<NotificationsPanel />} />
         </Route>
+
+        <Route
+          path="/participants/:userId"
+          element={
+            <ProtectedRoute allowedRoles={['orphanAdmin']}>
+              <ParticipantProfile />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Chat */}
+        <Route
+          path="/chat"
+          element={
+            <ProtectedRoute allowedRoles={['user', 'volunteer', 'orphanAdmin']}>
+              <Chat />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Volunteer help desk */}
         <Route
