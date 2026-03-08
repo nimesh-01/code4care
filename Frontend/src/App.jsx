@@ -11,6 +11,7 @@ import ChildProfile from './pages/ChildProfile'
 import OrphanageProfile from './pages/OrphanageProfile'
 import OrphanageChildren from './pages/OrphanageChildren'
 import Appointments from './pages/Appointments'
+import Events from './pages/Events'
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
 import ForgotPassword from './pages/auth/ForgotPassword'
@@ -23,12 +24,16 @@ import HelpRequestsManagement from './pages/dashboard/admin/HelpRequestsManageme
 import EventsManagement from './pages/dashboard/admin/EventsManagement'
 import PostsUpdates from './pages/dashboard/admin/PostsUpdates'
 import VolunteersManagement from './pages/dashboard/admin/VolunteersManagement'
+import VolunteerProfile from './pages/dashboard/admin/VolunteerProfile'
 import ReportsAnalytics from './pages/dashboard/admin/ReportsAnalytics'
 import SettingsPanel from './pages/dashboard/admin/SettingsPanel'
 import NotificationsPanel from './pages/dashboard/admin/NotificationsPanel'
 import VolunteerHelpDesk from './pages/dashboard/volunteer/VolunteerHelpDesk'
 import Chat from './pages/Chat'
+import Notifications from './pages/Notifications'
 import ParticipantProfile from './pages/dashboard/admin/ParticipantProfile'
+import CreatePost from './pages/posts/CreatePost'
+import OrphanagePosts from './pages/posts/OrphanagePosts'
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -76,6 +81,16 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/orphanage/:orphanageId/posts" element={<OrphanagePosts />} />
+        <Route path="/events" element={<Events />} />
+        <Route
+          path="/posts/create"
+          element={
+            <ProtectedRoute allowedRoles={['orphanAdmin']}>
+              <CreatePost />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/appointments"
           element={
@@ -112,6 +127,7 @@ function App() {
           <Route path="events" element={<EventsManagement />} />
           <Route path="posts" element={<PostsUpdates />} />
           <Route path="volunteers" element={<VolunteersManagement />} />
+          <Route path="volunteers/:odaUserId" element={<VolunteerProfile />} />
           <Route path="reports" element={<ReportsAnalytics />} />
           <Route path="settings" element={<SettingsPanel />} />
           <Route path="notifications" element={<NotificationsPanel />} />
@@ -132,6 +148,16 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['user', 'volunteer', 'orphanAdmin']}>
               <Chat />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Notifications */}
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute allowedRoles={['user', 'volunteer', 'orphanAdmin', 'superAdmin']}>
+              <Notifications />
             </ProtectedRoute>
           }
         />

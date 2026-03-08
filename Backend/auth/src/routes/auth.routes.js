@@ -68,6 +68,8 @@ router.delete('/orphanage/document', authMiddleware.authMiddleware, authControll
 // Inter-service routes (for microservice communication)
 // Get user by ID
 router.get('/user/:userId', authMiddleware.authMiddleware, authController.getUserById)
+// Get multiple users by IDs (batch)
+router.post('/users/batch', authMiddleware.authMiddleware, authController.getUsersBatch)
 // Get orphanage by ID (requires login)
 router.get('/orphanage/:orphanageId', authMiddleware.authMiddleware, authController.getOrphanageById)
 

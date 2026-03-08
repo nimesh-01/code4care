@@ -811,6 +811,25 @@ async function getUserById(req, res) {
     }
 }
 
+// Get multiple users by IDs (batch lookup)
+async function getUsersBatch(req, res) {
+    try {
+        const { ids } = req.body
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ message: 'ids array is required' })
+        }
+        // Limit to 100 IDs per request
+        const limitedIds = ids.slice(0, 100)
+        const users = await userModel.find({ _id: { $in: limitedIds } })
+            .select('username fullname profileUrl role')
+            .lean()
+        return res.status(200).json({ users })
+    } catch (err) {
+        console.error('Error in getUsersBatch:', err)
+        return res.status(500).json({ message: 'Internal Server Error' })
+    }
+}
+
 // Get orphanage by ID (for inter-service communication)
 async function getOrphanageById(req, res) {
     try {
@@ -881,4 +900,4 @@ async function uploadOrphanageDocumentPublic(req, res) {
     }
 }
 
-module.exports = { registerUser, registerOrphan, loginUser, getCurrentUser, updateUser, logoutUser, forgotPassword, resetPassword, updateOrphanage, uploadOrphanageDocument, uploadOrphanageDocumentPublic, deleteOrphanageDocument, getOrphanage, listOrphanages, getUserById, getOrphanageById, uploadAdminIdDocumentPublic }
+module.exports = { registerUser, registerOrphan, loginUser, getCurrentUser, updateUser, logoutUser, forgotPassword, resetPassword, updateOrphanage, uploadOrphanageDocument, uploadOrphanageDocumentPublic, deleteOrphanageDocument, getOrphanage, listOrphanages, getUserById, getUsersBatch, getOrphanageById, uploadAdminIdDocumentPublic }

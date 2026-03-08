@@ -1,17 +1,35 @@
 # Notification Service
 
-A microservice responsible for sending email notifications across the SoulConnect platform using RabbitMQ message queues.
+A microservice responsible for **email notifications** and **in-app notifications** across the SoulConnect platform using RabbitMQ message queues and MongoDB.
 
 ## Features
 
-- **User Registration Notifications**: Welcome emails for new users
+### Email Notifications (via RabbitMQ)
+- **User Registration**: Welcome emails for new users
 - **Orphanage Admin Registration**: Welcome emails for orphanage administrators
 - **Password Reset Flow**: Password reset request and confirmation emails
-- **Appointment Notifications**: 
-  - New appointment request (to orphanage)
-  - Appointment approved (to requester)
-  - Appointment rejected (to requester)
-  - Appointment cancelled (to orphanage)
+- **Appointment Notifications**: New request, approved, rejected, cancelled
+- **Payment Notifications**: Initiated, completed, failed
+
+### In-App Notifications (REST API + MongoDB)
+- **Real-time notification feed** for all users (user, volunteer, orphanAdmin)
+- **Unread count badge** with polling
+- **Filter by status**: All, Unread, Read
+- **Mark as read** (single / all)
+- **Delete / Clear read** notifications
+- Notifications created automatically alongside email notifications
+
+## REST API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/notifications` | Get user's notifications (paginated, filterable) |
+| `GET` | `/api/notifications/unread-count` | Get unread notification count |
+| `PUT` | `/api/notifications/read-all` | Mark all as read |
+| `PUT` | `/api/notifications/:id/read` | Mark one as read |
+| `DELETE` | `/api/notifications/:id` | Delete a notification |
+| `DELETE` | `/api/notifications/clear` | Clear all read notifications |
+| `POST` | `/api/notifications/send` | Send a notification (admin/internal) |
 
 ## Queue Events Handled
 
@@ -25,6 +43,15 @@ A microservice responsible for sending email notifications across the SoulConnec
 | `APPOINTMENT_NOTIFICATION.APPROVED` | Appointment approved |
 | `APPOINTMENT_NOTIFICATION.REJECTED` | Appointment rejected |
 | `APPOINTMENT_NOTIFICATION.CANCELLED` | Appointment cancelled |
+| `PAYMENT_NOTIFICATION.PAYMENT_INITIATED` | Payment initiated |
+| `PAYMENT_NOTIFICATION.PAYMENT_COMPLETED` | Payment completed |
+| `PAYMENT_NOTIFICATION.PAYMENT_FAILED` | Payment failed |
+| `HELP_REQUEST_NOTIFICATION.CREATED` | Help request published |
+| `HELP_REQUEST_NOTIFICATION.ACCEPTED` | Volunteer accepted help request |
+| `HELP_REQUEST_NOTIFICATION.COMPLETED` | Help request completed |
+| `EVENT_NOTIFICATION.CREATED` | New event created |
+| `EVENT_NOTIFICATION.VOLUNTEER_JOINED` | User joined event |
+| `EVENT_NOTIFICATION.REMINDER` | Event reminder |
 
 ## Setup
 
@@ -34,6 +61,8 @@ A microservice responsible for sending email notifications across the SoulConnec
    ```
 
 2. Configure your environment variables in `.env`:
+   - `MONGO_URL`: MongoDB connection string
+   - `JWT_SECRET`: JWT secret (must match auth service)
    - `RABBIT_URL`: RabbitMQ connection URL
    - `FRONTEND_URL`: Frontend application URL (for email links)
    - `EMAIL_USER`: Gmail address for sending emails

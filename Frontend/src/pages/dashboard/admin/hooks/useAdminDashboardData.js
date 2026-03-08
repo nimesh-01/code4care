@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { childrenAPI, donationAPI, appointmentAPI, helpRequestAPI, adminOrphanageAPI } from '../../../../services/api'
+import { childrenAPI, donationAPI, appointmentAPI, helpRequestAPI, adminOrphanageAPI, eventAPI } from '../../../../services/api'
 import { useAuth } from '../../../../context/AuthContext'
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -198,14 +198,18 @@ export const useAdminDashboardData = () => {
         appointmentRequest,
         helpRequestAPI.getAll(),
         adminOrphanageAPI.get(),
+        eventAPI.getAll(),
       ]
 
-      const [childrenRes, donationRes, chartStatsRes, appointmentRes, helpRes, orphanageRes] = await Promise.allSettled(requests)
+      const [childrenRes, donationRes, chartStatsRes, appointmentRes, helpRes, orphanageRes, eventRes] = await Promise.allSettled(requests)
 
       const pickArray = (result) => (result.status === 'fulfilled' ? extractArray(result.value.data) : null)
       const childrenList = pickArray(childrenRes)
       const appointmentList = pickArray(appointmentRes)
       const helpList = pickArray(helpRes)
+      const eventList = eventRes.status === 'fulfilled'
+        ? (eventRes.value.data?.events || extractArray(eventRes.value.data))
+        : null
       const donationPayload = donationRes.status === 'fulfilled' ? donationRes.value.data?.data : null
       const chartStats = chartStatsRes.status === 'fulfilled' ? chartStatsRes.value.data?.data : null
       const orphanageData = orphanageRes.status === 'fulfilled'
@@ -229,6 +233,7 @@ export const useAdminDashboardData = () => {
         // Backend already filters appointments by orphanageId for orphanAdmin
         appointments: appointmentList ?? prev.appointments,
         helpRequests: helpList ? filterByOrphanage(helpList) : prev.helpRequests,
+        events: eventList ?? prev.events,
       }))
     } catch (err) {
       setError('Unable to fetch live dashboard data. Showing the cached snapshot instead.')

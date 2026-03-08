@@ -3,14 +3,15 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   FaBuilding, FaMapMarkerAlt, FaPhone, FaEnvelope, FaHeart,
   FaArrowLeft, FaCheckCircle, FaClock, FaChild, FaFileAlt,
-  FaHandHoldingHeart, FaIdCard, FaGlobe, FaExclamationTriangle, FaCalendarAlt, FaComments
+  FaHandHoldingHeart, FaIdCard, FaGlobe, FaExclamationTriangle, FaCalendarAlt, FaComments, FaNewspaper
 } from 'react-icons/fa'
 import { toast } from 'react-toastify'
 import Navbar from '../components/Navbar'
 import AppointmentRequestModal from '../components/AppointmentRequestModal'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
-import { orphanagesAPI, childrenAPI } from '../services/api'
+import { orphanagesAPI, childrenAPI, postAPI } from '../services/api'
+import MediaCarousel from './posts/MediaCarousel'
 
 const OrphanageProfile = () => {
   const { id } = useParams()
@@ -23,6 +24,8 @@ const OrphanageProfile = () => {
   const [childrenLoading, setChildrenLoading] = useState(false)
   const [error, setError] = useState(null)
   const [showAppointmentModal, setShowAppointmentModal] = useState(false)
+  const [latestPosts, setLatestPosts] = useState([])
+  const [postsLoading, setPostsLoading] = useState(false)
 
   const normalizeId = (value) => {
     if (!value) return null
@@ -89,8 +92,9 @@ const OrphanageProfile = () => {
       setError(null)
       const response = await orphanagesAPI.getById(id)
       setOrphanage(response.data.orphanage)
-      // Also fetch children for this orphanage
+      // Also fetch children and latest posts for this orphanage
       fetchChildren(id)
+      fetchLatestPosts(id)
     } catch (err) {
       console.error('Error fetching orphanage:', err)
       if (err.response?.status === 404) {
@@ -113,6 +117,19 @@ const OrphanageProfile = () => {
       setChildren([])
     } finally {
       setChildrenLoading(false)
+    }
+  }
+
+  const fetchLatestPosts = async (orphanageId) => {
+    try {
+      setPostsLoading(true)
+      const res = await postAPI.getByOrphanage(orphanageId, { page: 1, limit: 3 })
+      setLatestPosts(res.data.posts || [])
+    } catch (err) {
+      console.error('Error fetching posts:', err)
+      setLatestPosts([])
+    } finally {
+      setPostsLoading(false)
     }
   }
 
@@ -471,6 +488,87 @@ const OrphanageProfile = () => {
                             </Link>
                           </div>
                         )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Posts Section */}
+                  <div className="bg-white dark:bg-dark-800 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-coral-50 dark:bg-coral-900/20 flex items-center justify-center">
+                          <FaNewspaper className="text-xl text-coral-500" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-teal-900 dark:text-cream-50">Posts & Updates</h3>
+                          <p className="text-sm text-teal-500 dark:text-cream-400">Latest stories from {orphanage.name}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {postsLoading ? (
+                      <div className="flex justify-center py-10">
+                        <div className="animate-spin rounded-full h-10 w-10 border-t-4 border-b-4 border-coral-500"></div>
+                      </div>
+                    ) : latestPosts.length === 0 ? (
+                      <div className="text-center py-8">
+                        <FaNewspaper className="text-4xl text-teal-200 dark:text-dark-600 mx-auto mb-3" />
+                        <p className="text-teal-500 dark:text-cream-400">No posts shared yet.</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                          {latestPosts.map((post) => {
+                            const thumb = post.media?.[0] || (post.imageUrl ? { url: post.imageUrl, type: 'image' } : null)
+                            return (
+                              <Link
+                                key={post._id}
+                                to={`/orphanage/${id}/posts`}
+                                className="group rounded-xl overflow-hidden bg-cream-50 dark:bg-dark-700 hover:shadow-lg transition-all duration-300"
+                              >
+                                {thumb ? (
+                                  <div className="aspect-square bg-black overflow-hidden">
+                                    {thumb.type === 'video' ? (
+                                      <video
+                                        src={thumb.url}
+                                        muted
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                      />
+                                    ) : (
+                                      <img
+                                        src={thumb.url}
+                                        alt="Post"
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                        loading="lazy"
+                                      />
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="aspect-square bg-cream-100 dark:bg-dark-600 flex items-center justify-center">
+                                    <FaNewspaper className="text-3xl text-teal-300 dark:text-dark-500" />
+                                  </div>
+                                )}
+                                <div className="p-3">
+                                  <p className="text-sm text-teal-800 dark:text-cream-100 line-clamp-2">
+                                    {post.caption || 'No caption'}
+                                  </p>
+                                  <div className="flex items-center gap-3 mt-2 text-xs text-teal-500 dark:text-cream-400">
+                                    <span className="flex items-center gap-1"><FaHeart className="text-red-400" /> {post.likes?.length || 0}</span>
+                                    <span className="flex items-center gap-1"><FaComments /> {post.comments?.length || 0}</span>
+                                  </div>
+                                </div>
+                              </Link>
+                            )
+                          })}
+                        </div>
+                        <div className="text-center">
+                          <Link
+                            to={`/orphanage/${id}/posts`}
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-coral-500 text-white font-semibold rounded-xl hover:bg-coral-600 transition-colors shadow-md hover:shadow-lg"
+                          >
+                            See More Posts <FaArrowLeft className="rotate-180" />
+                          </Link>
+                        </div>
                       </>
                     )}
                   </div>

@@ -98,6 +98,7 @@ export const authAPI = {
   },
   deleteOrphanageDocument: (field, fileId) => api.delete('/auth/orphanage/document', { data: { field, fileId } }),
   getUserById: (id) => api.get(`/auth/user/${id}`),
+  getUsersBatch: (ids) => api.post('/auth/users/batch', { ids }),
 }
 
 // Orphanages API (from auth service)
@@ -282,6 +283,93 @@ export const adminOrphanageAPI = {
     })
   },
   deleteDocument: (field, fileId) => api.delete('/auth/orphanage/document', { data: { field, fileId } }),
+}
+
+// Post API (Post Service - port 3007)
+const postApi = axios.create({
+  baseURL: import.meta.env.VITE_POST_API_URL || 'http://localhost:3007/post',
+  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
+})
+postApi.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token')
+    if (token) config.headers.Authorization = `Bearer ${token}`
+    return config
+  },
+  (error) => Promise.reject(error)
+)
+postApi.interceptors.response.use((response) => response, handle401Error)
+
+// Event API (Event Service - port 3008)
+const eventApi = axios.create({
+  baseURL: import.meta.env.VITE_EVENT_API_URL || 'http://localhost:3008/event',
+  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
+})
+eventApi.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token')
+    if (token) config.headers.Authorization = `Bearer ${token}`
+    return config
+  },
+  (error) => Promise.reject(error)
+)
+eventApi.interceptors.response.use((response) => response, handle401Error)
+
+export const eventAPI = {
+  create: (formData) => eventApi.post('/create', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  getAll: (params = {}) => eventApi.get('/all', { params }),
+  getById: (id) => eventApi.get(`/${id}`),
+  join: (id) => eventApi.post(`/${id}/join`),
+  leave: (id) => eventApi.delete(`/${id}/leave`),
+  update: (id, formData) => eventApi.put(`/${id}/update`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  delete: (id) => eventApi.delete(`/${id}/delete`),
+  getParticipants: (id) => eventApi.get(`/${id}/participants`),
+}
+
+export const postAPI = {
+  create: (formData) => postApi.post('/create', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000, // 2min timeout for large video uploads
+  }),
+  getByOrphanage: (orphanageId, params = {}) => postApi.get(`/orphanage/${orphanageId}`, { params }),
+  like: (id) => postApi.put(`/${id}/like`),
+  comment: (id, data) => postApi.post(`/${id}/comment`, data),
+  edit: (id, data) => postApi.put(`/${id}/edit`, data),
+  delete: (id) => postApi.delete(`/${id}/delete`),
+  generateCaption: (imageDescription) => postApi.post('/generate-caption', { imageDescription }),
+  getEngagement: (id) => postApi.get(`/${id}/engagement`),
+}
+
+// Notification API (Notification Service - port 3005)
+const notificationApi = axios.create({
+  baseURL: import.meta.env.VITE_NOTIFICATION_API_URL || 'http://localhost:3005/api/notifications',
+  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
+})
+notificationApi.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token')
+    if (token) config.headers.Authorization = `Bearer ${token}`
+    return config
+  },
+  (error) => Promise.reject(error)
+)
+notificationApi.interceptors.response.use((response) => response, handle401Error)
+
+export const notificationAPI = {
+  getAll: (params = {}) => notificationApi.get('/', { params }),
+  getUnreadCount: () => notificationApi.get('/unread-count'),
+  markAsRead: (id) => notificationApi.put(`/${id}/read`),
+  markAllAsRead: () => notificationApi.put('/read-all'),
+  delete: (id) => notificationApi.delete(`/${id}`),
+  clearRead: () => notificationApi.delete('/clear'),
+  send: (data) => notificationApi.post('/send', data),
 }
 
 export default api

@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { FaHeart, FaBars, FaTimes, FaSun, FaMoon, FaUserCircle, FaComments } from 'react-icons/fa'
+import { FaHeart, FaBars, FaTimes, FaSun, FaMoon, FaUserCircle, FaComments, FaBell } from 'react-icons/fa'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
+import { useNotifications } from '../context/NotificationContext'
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false)
   const { user, logout } = useAuth()
   const { isDarkMode, toggleTheme } = useTheme()
+  const { unreadCount } = useNotifications()
   const navigate = useNavigate()
   const normalizedRole = (user?.role || '').toLowerCase()
   const canViewAppointments = ['user', 'volunteer'].includes(normalizedRole)
@@ -36,6 +38,7 @@ const Navbar = () => {
                 <NavLink to="/children">Children</NavLink>
                 <NavLink to="/orphanages">Orphanages</NavLink>
                 {canViewAppointments && <NavLink to="/appointments">Appointments</NavLink>}
+                <NavLink to="/events">Events</NavLink>
                 <NavLink to="/donate">Donate</NavLink>
               </>
             )}
@@ -60,6 +63,14 @@ const Navbar = () => {
                 <Link to="/chat" className="flex items-center gap-1 text-teal-700 dark:text-teal-400 hover:text-coral-500 dark:hover:text-coral-400 transition font-medium">
                   <FaComments className="text-sm" />
                   <span>Chat</span>
+                </Link>
+                <Link to="/notifications" className="relative flex items-center text-teal-700 dark:text-teal-400 hover:text-coral-500 dark:hover:text-coral-400 transition">
+                  <FaBell className="text-lg" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-coral-500 text-white text-[10px] font-bold leading-none px-1">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </Link>
                 {normalizedRole === 'volunteer' && (
                   <Link to="/dashboard/volunteer" className="text-teal-700 dark:text-teal-400 hover:text-coral-500 dark:hover:text-coral-400 transition font-medium">
@@ -123,6 +134,7 @@ const Navbar = () => {
                   {canViewAppointments && (
                     <MobileNavLink to="/appointments" onClick={() => setIsOpen(false)}>Appointments</MobileNavLink>
                   )}
+                  <MobileNavLink to="/events" onClick={() => setIsOpen(false)}>Events</MobileNavLink>
                   <MobileNavLink to="/donate" onClick={() => setIsOpen(false)}>Donate</MobileNavLink>
                 </>
               )}
@@ -133,6 +145,14 @@ const Navbar = () => {
                     <MobileNavLink to="/profile" onClick={() => setIsOpen(false)}>Profile</MobileNavLink>
                   )}
                   <MobileNavLink to="/chat" onClick={() => setIsOpen(false)}>Chat</MobileNavLink>
+                  <Link
+                    to="/notifications"
+                    onClick={() => setIsOpen(false)}
+                    className="flex items-center gap-2 text-teal-800 dark:text-cream-100 hover:text-coral-500 dark:hover:text-coral-400 transition font-medium"
+                  >
+                    <FaBell className="text-sm" />
+                    Notifications{unreadCount > 0 && ` (${unreadCount})`}
+                  </Link>
                   {normalizedRole === 'volunteer' && (
                     <MobileNavLink to="/dashboard/volunteer" onClick={() => setIsOpen(false)}>Volunteer Desk</MobileNavLink>
                   )}

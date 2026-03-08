@@ -70,7 +70,6 @@ const conversationSchema = new mongoose.Schema({
 // Index for faster queries
 conversationSchema.index({ 'participants.participantId': 1 });
 conversationSchema.index({ updatedAt: -1 });
-conversationSchema.index({ participantsKey: 1 }, { unique: true });
 
 // Static method to find conversation between two users
 conversationSchema.statics.findConversation = async function(participant1Id, participant2Id) {

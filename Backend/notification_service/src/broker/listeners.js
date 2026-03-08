@@ -1,7 +1,18 @@
 const { subscribeToQueue } = require('./broker')
 const sendEmail = require('../email')
+const Notification = require('../models/notification.model')
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
+
+// Helper to create in-app notification (silent fail - email is primary)
+const createInAppNotification = async ({ recipient, recipientRole, type, title, message, data }) => {
+  try {
+    if (!recipient) return
+    await Notification.create({ recipient, recipientRole: recipientRole || 'user', type, title, message, data: data || {} })
+  } catch (err) {
+    console.error('Failed to create in-app notification:', err.message)
+  }
+}
 
 module.exports = async () => {
   // ================== AUTH NOTIFICATIONS ==================
@@ -29,6 +40,18 @@ module.exports = async () => {
       "Thank you for registering with SoulConnect!",
       emailHTMLTemplate
     );
+
+    // In-app welcome notification
+    if (data.userId) {
+      await createInAppNotification({
+        recipient: data.userId,
+        recipientRole: data.role || 'user',
+        type: 'welcome',
+        title: 'Welcome to SoulConnect!',
+        message: 'Thank you for joining SoulConnect. Explore orphanages, schedule visits, and make a difference.',
+        data: {},
+      })
+    }
   });
 
   // Orphanage Admin Registration Email
@@ -57,6 +80,18 @@ module.exports = async () => {
       "Your orphanage registration has been received and is pending verification.",
       emailHTMLTemplate
     );
+
+    // In-app notification for orphanage admin
+    if (data.userId) {
+      await createInAppNotification({
+        recipient: data.userId,
+        recipientRole: 'orphanAdmin',
+        type: 'welcome',
+        title: 'Orphanage Registration Received',
+        message: `Your orphanage "${data.orphanageName || 'your orphanage'}" registration is pending verification. We'll notify you once approved.`,
+        data: { orphanageName: data.orphanageName },
+      })
+    }
   });
 
   // Password Reset Request Email
@@ -139,6 +174,18 @@ module.exports = async () => {
       `Your appointment at ${data.orphanageName || 'the orphanage'} has been approved for ${appointmentDate}.`,
       emailHTMLTemplate
     );
+
+    // In-app notification for requester
+    if (data.requesterId) {
+      await createInAppNotification({
+        recipient: data.requesterId,
+        recipientRole: data.requesterRole || 'user',
+        type: 'appointment_approved',
+        title: 'Appointment Approved!',
+        message: `Your appointment at ${data.orphanageName || 'the orphanage'} for ${appointmentDate} has been approved.`,
+        data: { appointmentId: data.appointmentId, orphanageName: data.orphanageName },
+      })
+    }
   });
 
   // Appointment Rejected Email
@@ -169,6 +216,18 @@ module.exports = async () => {
       `Your appointment request at ${data.orphanageName || 'the orphanage'} has been declined.`,
       emailHTMLTemplate
     );
+
+    // In-app notification for requester
+    if (data.requesterId) {
+      await createInAppNotification({
+        recipient: data.requesterId,
+        recipientRole: data.requesterRole || 'user',
+        type: 'appointment_rejected',
+        title: 'Appointment Declined',
+        message: `Your appointment request at ${data.orphanageName || 'the orphanage'} has been declined.${data.adminResponse ? ' Reason: ' + data.adminResponse : ''}`,
+        data: { appointmentId: data.appointmentId, orphanageName: data.orphanageName },
+      })
+    }
   });
 
   // Appointment Cancelled Email (to Orphanage)
@@ -194,6 +253,18 @@ module.exports = async () => {
       `An appointment scheduled for ${data.requestedAt ? new Date(data.requestedAt).toLocaleString() : 'N/A'} has been cancelled.`,
       emailHTMLTemplate
     );
+
+    // In-app notification for orphanage admin
+    if (data.orphanageAdminId) {
+      await createInAppNotification({
+        recipient: data.orphanageAdminId,
+        recipientRole: 'orphanAdmin',
+        type: 'appointment_cancelled',
+        title: 'Appointment Cancelled',
+        message: `${data.requesterName || 'A visitor'} has cancelled their appointment scheduled for ${data.requestedAt ? new Date(data.requestedAt).toLocaleString() : 'N/A'}.`,
+        data: { appointmentId: data.appointmentId, requesterName: data.requesterName },
+      })
+    }
   });
 
   // New Appointment Request Email (to Orphanage)
@@ -223,6 +294,18 @@ module.exports = async () => {
       `New appointment request from ${data.requesterName || 'a visitor'} for ${data.requestedAt ? new Date(data.requestedAt).toLocaleString() : 'N/A'}.`,
       emailHTMLTemplate
     );
+
+    // In-app notification for orphanage admin
+    if (data.orphanageAdminId) {
+      await createInAppNotification({
+        recipient: data.orphanageAdminId,
+        recipientRole: 'orphanAdmin',
+        type: 'appointment_request',
+        title: 'New Appointment Request',
+        message: `New appointment request from ${data.requesterName || 'a visitor'} for ${data.requestedAt ? new Date(data.requestedAt).toLocaleString() : 'N/A'}.`,
+        data: { appointmentId: data.appointmentId, requesterName: data.requesterName, purpose: data.purpose },
+      })
+    }
   });
 
   // ================== PAYMENT NOTIFICATIONS ==================
@@ -259,6 +342,30 @@ module.exports = async () => {
       `We have received your payment of ${data.currency} ${data.amount}.`,
       emailHTMLTemplate
     );
+
+    // In-app notification for donor
+    if (data.userId) {
+      await createInAppNotification({
+        recipient: data.userId,
+        recipientRole: data.role || 'user',
+        type: 'donation_completed',
+        title: 'Donation Successful!',
+        message: `Your donation of ${data.currency} ${data.amount} has been received. Thank you for your generosity!`,
+        data: { orderId: data.orderId, amount: data.amount, currency: data.currency },
+      })
+    }
+
+    // In-app notification for orphanage admin
+    if (data.orphanageAdminId) {
+      await createInAppNotification({
+        recipient: data.orphanageAdminId,
+        recipientRole: 'orphanAdmin',
+        type: 'donation_received',
+        title: 'New Donation Received!',
+        message: `${data.username || 'A donor'} has donated ${data.currency} ${data.amount} to your orphanage.`,
+        data: { orderId: data.orderId, amount: data.amount, currency: data.currency, donorName: data.username },
+      })
+    }
   });
 
   subscribeToQueue("PAYMENT_NOTIFICATION.PAYMENT_FAILED", async (data) => {
@@ -295,4 +402,126 @@ module.exports = async () => {
   });
 
   console.log("✅ All notification listeners set up successfully");
+
+  // ================== HELP REQUEST NOTIFICATIONS ==================
+
+  subscribeToQueue("HELP_REQUEST_NOTIFICATION.CREATED", async (data) => {
+    // Notify orphanage admin that a help request has been created (or published)
+    if (data.orphanageAdminId) {
+      await createInAppNotification({
+        recipient: data.orphanageAdminId,
+        recipientRole: 'orphanAdmin',
+        type: 'help_request',
+        title: 'Help Request Published',
+        message: `Your help request "${data.title || 'Untitled'}" has been published successfully.`,
+        data: { helpRequestId: data.helpRequestId },
+      })
+    }
+  });
+
+  subscribeToQueue("HELP_REQUEST_NOTIFICATION.ACCEPTED", async (data) => {
+    // Notify orphanage admin that a volunteer accepted the help request
+    if (data.orphanageAdminId) {
+      await createInAppNotification({
+        recipient: data.orphanageAdminId,
+        recipientRole: 'orphanAdmin',
+        type: 'help_request_accepted',
+        title: 'Help Request Accepted',
+        message: `${data.volunteerName || 'A volunteer'} has accepted your help request "${data.title || ''}".`,
+        data: { helpRequestId: data.helpRequestId, volunteerName: data.volunteerName },
+      })
+    }
+
+    // Notify volunteer of acceptance confirmation
+    if (data.volunteerId) {
+      await createInAppNotification({
+        recipient: data.volunteerId,
+        recipientRole: 'volunteer',
+        type: 'help_request_accepted',
+        title: 'You Accepted a Help Request',
+        message: `You have accepted the help request "${data.title || ''}" from ${data.orphanageName || 'an orphanage'}.`,
+        data: { helpRequestId: data.helpRequestId, orphanageName: data.orphanageName },
+      })
+    }
+  });
+
+  subscribeToQueue("HELP_REQUEST_NOTIFICATION.COMPLETED", async (data) => {
+    if (data.orphanageAdminId) {
+      await createInAppNotification({
+        recipient: data.orphanageAdminId,
+        recipientRole: 'orphanAdmin',
+        type: 'help_request_completed',
+        title: 'Help Request Completed',
+        message: `The help request "${data.title || ''}" has been marked as completed.`,
+        data: { helpRequestId: data.helpRequestId },
+      })
+    }
+
+    if (data.volunteerId) {
+      await createInAppNotification({
+        recipient: data.volunteerId,
+        recipientRole: 'volunteer',
+        type: 'help_request_completed',
+        title: 'Help Request Completed',
+        message: `Great job! The help request "${data.title || ''}" you assisted with is now completed.`,
+        data: { helpRequestId: data.helpRequestId },
+      })
+    }
+  });
+
+  // ================== EVENT NOTIFICATIONS ==================
+
+  subscribeToQueue("EVENT_NOTIFICATION.CREATED", async (data) => {
+    if (data.organizerId) {
+      await createInAppNotification({
+        recipient: data.organizerId,
+        recipientRole: data.organizerRole || 'orphanAdmin',
+        type: 'event_created',
+        title: 'Event Created',
+        message: `Your event "${data.title || ''}" has been created successfully.`,
+        data: { eventId: data.eventId },
+      })
+    }
+  });
+
+  subscribeToQueue("EVENT_NOTIFICATION.VOLUNTEER_JOINED", async (data) => {
+    // Notify event organizer (orphanage admin) 
+    if (data.organizerId) {
+      await createInAppNotification({
+        recipient: data.organizerId,
+        recipientRole: 'orphanAdmin',
+        type: 'volunteer_joined',
+        title: 'New Event Participant',
+        message: `${data.volunteerName || 'A user'} has joined your event "${data.eventTitle || ''}".`,
+        data: { eventId: data.eventId, volunteerName: data.volunteerName },
+      })
+    }
+
+    // Notify the volunteer who joined
+    if (data.volunteerId) {
+      await createInAppNotification({
+        recipient: data.volunteerId,
+        recipientRole: data.volunteerRole || 'volunteer',
+        type: 'event_created',
+        title: 'Joined Event',
+        message: `You have successfully joined the event "${data.eventTitle || ''}".`,
+        data: { eventId: data.eventId },
+      })
+    }
+  });
+
+  subscribeToQueue("EVENT_NOTIFICATION.REMINDER", async (data) => {
+    if (data.participantId) {
+      await createInAppNotification({
+        recipient: data.participantId,
+        recipientRole: data.participantRole || 'user',
+        type: 'event_reminder',
+        title: 'Event Reminder',
+        message: `Reminder: "${data.eventTitle || 'An event'}" is starting soon on ${data.eventDate || 'the scheduled date'}.`,
+        data: { eventId: data.eventId },
+      })
+    }
+  });
+
+  console.log("✅ All extended notification listeners set up successfully");
 }

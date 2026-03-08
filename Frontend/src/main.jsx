@@ -7,6 +7,7 @@ import 'react-toastify/dist/ReactToastify.css'
 import { AuthProvider } from './context/AuthContext.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 import NotificationProvider from './components/NotificationProvider.jsx'
+import { NotificationProvider as NotificationDataProvider } from './context/NotificationContext.jsx'
 import { ConfirmProvider } from './context/ConfirmContext.jsx'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -14,10 +15,12 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <ThemeProvider>
       <BrowserRouter>
         <AuthProvider>
-          <ConfirmProvider>
-            <App />
-            <NotificationProvider />
-          </ConfirmProvider>
+          <NotificationDataProvider>
+            <ConfirmProvider>
+              <App />
+              <NotificationProvider />
+            </ConfirmProvider>
+          </NotificationDataProvider>
         </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>
