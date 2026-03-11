@@ -5,6 +5,7 @@ import { useAdminDashboardContext } from './AdminLayout'
 import AdministratorIdentityCard from './components/AdministratorIdentityCard'
 import { useAuth } from '../../../context/AuthContext'
 import { adminOrphanageAPI, authAPI } from '../../../services/api'
+import { ScrollReveal } from '../../../hooks/useScrollReveal'
 
 const SettingsPanel = () => {
   const { data, refresh } = useAdminDashboardContext()
@@ -313,13 +314,16 @@ const SettingsPanel = () => {
 
   return (
     <div className="space-y-8">
+      <ScrollReveal animation="fade-up">
       <header>
         <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Settings</p>
         <h2 className="text-3xl font-semibold text-white">Orphanage control center</h2>
         <p className="text-sm text-slate-400">Update legal information, upload compliance documents, and manage secure access.</p>
       </header>
+      </ScrollReveal>
 
       {user?.role === 'orphanAdmin' && (
+        <ScrollReveal animation="fade-up" delay={100}>
         <AdministratorIdentityCard
           user={user}
           adminProfile={adminProfile}
@@ -328,9 +332,11 @@ const SettingsPanel = () => {
           onPhotoSelected={handlePhotoUpload}
           uploadingPhoto={photoUploading}
         />
+        </ScrollReveal>
       )}
 
       {user?.role === 'orphanAdmin' && (
+        <ScrollReveal animation="fade-up" delay={200}>
         <section ref={adminFormRef} className="rounded-3xl border border-white/5 bg-slate-900/40 p-6">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
@@ -493,8 +499,10 @@ const SettingsPanel = () => {
             </div>
           </form>
         </section>
+        </ScrollReveal>
       )}
 
+      <ScrollReveal animation="fade-up" delay={300}>
       <section className="rounded-3xl border border-white/5 bg-slate-900/40 p-6">
         <h3 className="text-xl font-semibold text-white">Profile information</h3>
         <form className="mt-6 grid gap-6" onSubmit={handleSave}>
@@ -592,7 +600,9 @@ const SettingsPanel = () => {
           </div>
         </form>
       </section>
+      </ScrollReveal>
 
+      <ScrollReveal animation="fade-up" delay={400}>
       <section className="grid gap-6 md:grid-cols-2">
         <div className="rounded-3xl border border-white/5 bg-slate-900/40 p-6">
           <div className="flex items-center gap-3">
@@ -716,6 +726,7 @@ const SettingsPanel = () => {
           </ul>
         </div>
       </section>
+      </ScrollReveal>
     </div>
   )
 }

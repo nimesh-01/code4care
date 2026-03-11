@@ -1,17 +1,24 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FaHeart, FaSearch, FaMapMarkerAlt, FaGraduationCap, FaHeartbeat, FaChild, FaFilter } from 'react-icons/fa'
 import Navbar from '../components/Navbar'
 import { useTheme } from '../context/ThemeContext'
 import { childrenAPI } from '../services/api'
+import { ScrollReveal } from '../hooks/useScrollReveal'
+import useInfiniteScroll from '../hooks/useInfiniteScroll'
+
+const ITEMS_PER_PAGE = 6
 
 const Children = () => {
   const navigate = useNavigate()
   const { isDarkMode } = useTheme()
   const [children, setChildren] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
   const [filters, setFilters] = useState({
     state: '',
     city: '',
@@ -20,43 +27,70 @@ const Children = () => {
   const [showFilters, setShowFilters] = useState(false)
 
   useEffect(() => {
-    fetchChildren()
+    fetchChildren(1, true)
   }, [])
 
-  const fetchChildren = async () => {
+  const fetchChildren = async (pageNum = 1, reset = false) => {
     try {
-      setLoading(true)
+      if (reset) setLoading(true)
+      else setLoadingMore(true)
       setError(null)
-      const params = {}
+      const params = { page: pageNum, limit: ITEMS_PER_PAGE }
       if (filters.state) params.state = filters.state
       if (filters.city) params.city = filters.city
       
       const response = await childrenAPI.getAll(params)
-      setChildren(response.data)
+      const data = response.data
+      const newItems = data.children || data || []
+      const pagination = data.pagination
+
+      if (reset) {
+        setChildren(Array.isArray(newItems) ? newItems : [])
+      } else {
+        setChildren(prev => [...prev, ...(Array.isArray(newItems) ? newItems : [])])
+      }
+      setPage(pageNum)
+      setHasMore(pagination?.hasMore ?? (Array.isArray(newItems) && newItems.length === ITEMS_PER_PAGE))
     } catch (err) {
       console.error('Error fetching children:', err)
       setError('Failed to load children profiles. Please try again.')
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
   }
+
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      fetchChildren(page + 1)
+    }
+  }, [loadingMore, hasMore, page, filters])
+
+  const { sentinelRef } = useInfiniteScroll(loadMore, hasMore, loadingMore)
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }))
   }
 
   const applyFilters = () => {
-    fetchChildren()
+    setChildren([])
+    setPage(1)
+    setHasMore(true)
+    fetchChildren(1, true)
     setShowFilters(false)
   }
 
   const clearFilters = () => {
     setFilters({ state: '', city: '', gender: '' })
     setSearchTerm('')
+    setChildren([])
+    setPage(1)
+    setHasMore(true)
+    fetchChildren(1, true)
   }
 
   const filteredChildren = children.filter(child => {
-    const matchesSearch = child.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = !searchTerm || child.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          child.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          child.state?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesGender = !filters.gender || child.gender === filters.gender
@@ -69,7 +103,7 @@ const Children = () => {
 
       {/* Hero Section */}
       <section className="pt-32 pb-16 bg-gradient-to-br from-coral-500 to-teal-600 dark:from-dark-800 dark:to-dark-950">
-        <div className="container mx-auto px-6 text-center">
+        <ScrollReveal animation="fade-up" className="container mx-auto px-6 text-center">
           <FaChild className="text-6xl text-white/80 mx-auto mb-4" />
           <h1 className="text-4xl md:text-5xl font-playfair font-bold text-white mb-4">
             Meet Our Children
@@ -77,7 +111,7 @@ const Children = () => {
           <p className="text-xl text-cream-100/80 max-w-2xl mx-auto">
             Every child has a unique story. Browse profiles and find ways to support their journey.
           </p>
-        </div>
+        </ScrollReveal>
       </section>
 
       {/* Search & Filter Section */}
@@ -212,6 +246,17 @@ const Children = () => {
                   <ChildCard key={child._id} child={child} onClick={() => navigate(`/children/${child._id}`)} />
                 ))}
               </div>
+              {/* Infinite scroll sentinel */}
+              {hasMore && (
+                <div ref={sentinelRef} className="flex justify-center py-8">
+                  {loadingMore && (
+                    <div className="animate-spin rounded-full h-10 w-10 border-t-4 border-b-4 border-coral-500"></div>
+                  )}
+                </div>
+              )}
+              {!hasMore && children.length > 0 && (
+                <p className="text-center text-teal-500 dark:text-cream-400 py-6 text-sm">You've reached the end</p>
+              )}
             </>
           )}
         </div>
@@ -219,7 +264,7 @@ const Children = () => {
 
       {/* CTA Section */}
       <section className="py-16 bg-gradient-to-r from-teal-700 to-teal-800 dark:from-dark-800 dark:to-dark-950">
-        <div className="container mx-auto px-6 text-center">
+        <ScrollReveal animation="zoom-in" className="container mx-auto px-6 text-center">
           <h2 className="text-3xl font-playfair font-bold text-white mb-4">
             Want to Make a Difference?
           </h2>
@@ -240,7 +285,7 @@ const Children = () => {
               Become a Volunteer
             </a>
           </div>
-        </div>
+        </ScrollReveal>
       </section>
 
       {/* Footer */}

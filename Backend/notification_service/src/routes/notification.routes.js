@@ -9,6 +9,7 @@ const {
     deleteNotification,
     clearReadNotifications,
     sendNotification,
+    sendBulkNotifications,
 } = require('../controllers/notification.controller')
 
 // All routes require auth
@@ -34,5 +35,8 @@ router.delete('/:id', deleteNotification)
 
 // Send notification (for internal / admin use)
 router.post('/send', sendNotification)
+
+// Send bulk notifications (admin - multiple recipients)
+router.post('/send-bulk', sendBulkNotifications)
 
 module.exports = router

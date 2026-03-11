@@ -13,6 +13,7 @@ import {
 } from 'react-icons/fa'
 import { MdEvent } from 'react-icons/md'
 import { authAPI } from '../../../services/api'
+import { ScrollReveal } from '../../../hooks/useScrollReveal'
 
 const formatDate = (value) => {
   if (!value) return ''
@@ -101,6 +102,7 @@ const VolunteersManagement = () => {
 
   return (
     <div className="space-y-8">
+      <ScrollReveal animation="fade-up">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.4em] text-teal-500 dark:text-cream-300">Volunteers</p>
@@ -108,8 +110,10 @@ const VolunteersManagement = () => {
           <p className="text-sm text-teal-600 dark:text-cream-400">Track volunteers who serve your orphanage through help requests and community events.</p>
         </div>
       </header>
+      </ScrollReveal>
 
       {/* Stats */}
+      <ScrollReveal animation="fade-up" delay={100}>
       <section className="grid gap-4 md:grid-cols-4">
         <div className="rounded-2xl border border-cream-200 bg-white p-5 dark:border-dark-700 dark:bg-dark-800">
           <FaUserCheck className="text-2xl text-teal-500" />
@@ -132,8 +136,10 @@ const VolunteersManagement = () => {
           <p className="mt-1 text-3xl font-bold text-teal-900 dark:text-cream-50">{stats.eventJoined}</p>
         </div>
       </section>
+      </ScrollReveal>
 
       {/* Filter tabs */}
+      <ScrollReveal animation="fade-up" delay={200}>
       <div className="flex gap-3 overflow-x-auto">
         {[{ key: 'all', label: 'All Volunteers' }, { key: 'helpRequests', label: 'Help Request Volunteers' }, { key: 'events', label: 'Event Volunteers' }].map((tab) => (
           <button
@@ -265,6 +271,7 @@ const VolunteersManagement = () => {
           })}
         </div>
       )}
+      </ScrollReveal>
     </div>
   )
 }

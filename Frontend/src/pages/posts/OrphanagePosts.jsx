@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { FaArrowLeft, FaSpinner, FaPlus, FaNewspaper } from 'react-icons/fa'
 import Navbar from '../../components/Navbar'
+import { ScrollReveal } from '../../hooks/useScrollReveal'
 import { useTheme } from '../../context/ThemeContext'
 import { useAuth } from '../../context/AuthContext'
 import { postAPI, orphanagesAPI } from '../../services/api'
@@ -56,31 +57,33 @@ const OrphanagePosts = () => {
 
       {/* Header */}
       <section className="pt-32 pb-12 bg-gradient-to-br from-teal-700 to-teal-900 dark:from-dark-800 dark:to-dark-950">
-        <div className="container mx-auto px-6">
-          <Link
-            to={`/orphanages/${orphanageId}`}
-            className="inline-flex items-center gap-2 text-cream-100/80 hover:text-white mb-4 transition"
-          >
-            <FaArrowLeft /> Back to Orphanage
-          </Link>
-          <div className="flex items-center justify-between">
-            <div>
-              <FaNewspaper className="text-4xl text-white/80 mb-2" />
-              <h1 className="text-3xl md:text-4xl font-playfair font-bold text-white">
-                {orphanage?.name ? `${orphanage.name} — Posts` : 'Orphanage Posts'}
-              </h1>
-              <p className="text-cream-100/70 mt-1">Updates, stories, and moments from the orphanage</p>
+        <ScrollReveal animation="fade-up">
+          <div className="container mx-auto px-6">
+            <Link
+              to={`/orphanages/${orphanageId}`}
+              className="inline-flex items-center gap-2 text-cream-100/80 hover:text-white mb-4 transition"
+            >
+              <FaArrowLeft /> Back to Orphanage
+            </Link>
+            <div className="flex items-center justify-between">
+              <div>
+                <FaNewspaper className="text-4xl text-white/80 mb-2" />
+                <h1 className="text-3xl md:text-4xl font-playfair font-bold text-white">
+                  {orphanage?.name ? `${orphanage.name} — Posts` : 'Orphanage Posts'}
+                </h1>
+                <p className="text-cream-100/70 mt-1">Updates, stories, and moments from the orphanage</p>
+              </div>
+              {isOrphanageAdmin && (
+                <Link
+                  to="/posts/create"
+                  className="flex items-center gap-2 px-5 py-3 bg-coral-500 text-white font-semibold rounded-xl hover:bg-coral-600 transition shadow-lg"
+                >
+                  <FaPlus /> New Post
+                </Link>
+              )}
             </div>
-            {isOrphanageAdmin && (
-              <Link
-                to="/posts/create"
-                className="flex items-center gap-2 px-5 py-3 bg-coral-500 text-white font-semibold rounded-xl hover:bg-coral-600 transition shadow-lg"
-              >
-                <FaPlus /> New Post
-              </Link>
-            )}
           </div>
-        </div>
+        </ScrollReveal>
       </section>
 
       {/* Posts Grid */}

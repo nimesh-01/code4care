@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { FaImage, FaMagic, FaTimes, FaSpinner, FaPlus, FaVideo } from 'react-icons/fa'
 import { toast } from 'react-toastify'
 import Navbar from '../../components/Navbar'
+import { ScrollReveal } from '../../hooks/useScrollReveal'
 import { useTheme } from '../../context/ThemeContext'
 import { useAuth } from '../../context/AuthContext'
 import { postAPI } from '../../services/api'
@@ -95,16 +96,19 @@ const CreatePost = () => {
       <Navbar />
 
       <section className="pt-32 pb-16 bg-gradient-to-br from-teal-700 to-teal-900 dark:from-dark-800 dark:to-dark-950">
-        <div className="container mx-auto px-6 text-center">
-          <FaImage className="text-5xl text-white/80 mx-auto mb-4" />
-          <h1 className="text-4xl font-playfair font-bold text-white mb-2">Create Post</h1>
-          <p className="text-lg text-cream-100/80">Share updates and stories from your orphanage</p>
-        </div>
+        <ScrollReveal animation="fade-up">
+          <div className="container mx-auto px-6 text-center">
+            <FaImage className="text-5xl text-white/80 mx-auto mb-4" />
+            <h1 className="text-4xl font-playfair font-bold text-white mb-2">Create Post</h1>
+            <p className="text-lg text-cream-100/80">Share updates and stories from your orphanage</p>
+          </div>
+        </ScrollReveal>
       </section>
 
       <section className="py-12">
-        <div className="container mx-auto px-6 max-w-2xl">
-          <form onSubmit={handleSubmit} className="bg-white dark:bg-dark-800 rounded-2xl shadow-lg p-8 space-y-6">
+        <ScrollReveal animation="fade-up" delay={200}>
+          <div className="container mx-auto px-6 max-w-2xl">
+            <form onSubmit={handleSubmit} className="bg-white dark:bg-dark-800 rounded-2xl shadow-lg p-8 space-y-6">
 
             {/* Media Upload */}
             <div>
@@ -211,8 +215,9 @@ const CreatePost = () => {
               {loading ? <FaSpinner className="animate-spin" /> : null}
               {loading ? 'Publishing...' : 'Publish Post'}
             </button>
-          </form>
-        </div>
+            </form>
+          </div>
+        </ScrollReveal>
       </section>
     </div>
   )

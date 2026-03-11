@@ -145,16 +145,24 @@ const getChildren = async (req, res) => {
         }
 
         // Public / regular users / volunteers: allow filters via query params
-        const { state, city, limit = 100, page = 1 } = req.query;
+        const { state, city, limit = 6, page = 1 } = req.query;
         const query = {};
         if (state) query['address.state'] = { $regex: `^${state}$`, $options: 'i' };
         if (city) query['address.city'] = { $regex: `^${city}$`, $options: 'i' };
 
-        const perPage = Math.min(parseInt(limit, 10) || 100, 500);
-        const skip = (Math.max(parseInt(page, 10) || 1, 1) - 1) * perPage;
+        const perPage = Math.min(parseInt(limit, 10) || 6, 500);
+        const currentPage = Math.max(parseInt(page, 10) || 1, 1);
+        const skip = (currentPage - 1) * perPage;
 
-        const children = await Child.find(query).skip(skip).limit(perPage);
-        return res.json(children);
+        const [children, totalCount] = await Promise.all([
+            Child.find(query).skip(skip).limit(perPage),
+            Child.countDocuments(query)
+        ]);
+        const totalPages = Math.ceil(totalCount / perPage);
+        return res.json({
+            children,
+            pagination: { currentPage, totalPages, totalCount, hasMore: currentPage < totalPages }
+        });
     } catch (err) {
         console.error('getChildren error:', err.stack || err);
         res.status(500).json({ error: err.message });
@@ -429,6 +437,17 @@ const deleteChildFile = async (req, res) => {
         return res.status(500).json({ error: err.message });
     }
 };
+// Public endpoint: total active children count (no auth)
+const getPublicChildrenCount = async (req, res) => {
+    try {
+        const count = await Child.countDocuments({ status: 'active' });
+        return res.status(200).json({ totalChildren: count });
+    } catch (err) {
+        console.error('getPublicChildrenCount error:', err);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+};
+
 module.exports = {
     createChild,
     getChildren,
@@ -436,5 +455,6 @@ module.exports = {
     getChildById,
     updateChild,
     deleteChild,
-    deleteChildFile
+    deleteChildFile,
+    getPublicChildrenCount
 }

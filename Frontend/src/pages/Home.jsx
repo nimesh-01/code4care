@@ -1,8 +1,33 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { FaHeart, FaHandHoldingHeart, FaUsers, FaChild, FaDonate, FaCalendarAlt, FaComments } from 'react-icons/fa'
 import Navbar from '../components/Navbar'
+import { authAPI, childrenAPI, donationAPI } from '../services/api'
+import { ScrollReveal } from '../hooks/useScrollReveal'
 
 const Home = () => {
+  const [stats, setStats] = useState({ orphanages: 0, children: 0, volunteers: 0, donated: 0 })
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const [platformRes, childrenRes, donationRes] = await Promise.all([
+          authAPI.getPlatformStats().catch(() => null),
+          childrenAPI.getPublicCount().catch(() => null),
+          donationAPI.getPublicStats().catch(() => null),
+        ])
+        setStats({
+          orphanages: platformRes?.data?.totalOrphanages || 0,
+          children: childrenRes?.data?.totalChildren || 0,
+          volunteers: platformRes?.data?.totalVolunteers || 0,
+          donated: donationRes?.data?.totalDonated || 0,
+        })
+      } catch (err) {
+        console.error('Failed to fetch platform stats:', err)
+      }
+    }
+    fetchStats()
+  }, [])
   return (
     <div className="min-h-screen bg-cream-50 dark:bg-dark-900 transition-colors duration-300">
       <Navbar />
@@ -18,7 +43,7 @@ const Home = () => {
         
         <div className="container mx-auto px-6 py-20 relative z-10">
           <div className="flex flex-col lg:flex-row items-center justify-between gap-12">
-            <div className="lg:w-1/2 mb-12 lg:mb-0">
+            <ScrollReveal animation="fade-right" className="lg:w-1/2 mb-12 lg:mb-0">
               <span className="inline-block px-4 py-2 bg-coral-100 dark:bg-coral-900/30 text-coral-600 dark:text-coral-400 rounded-full text-sm font-medium mb-6">
                 Welcome to SoulConnect
               </span>
@@ -38,10 +63,10 @@ const Home = () => {
                   Learn More
                 </Link>
               </div>
-            </div>
+            </ScrollReveal>
             
             {/* Heart-shaped Image Container */}
-            <div className="lg:w-1/2 flex justify-center">
+            <ScrollReveal animation="fade-left" delay={200} className="lg:w-1/2 flex justify-center">
               <div className="relative">
                 {/* Main Heart Container */}
                 <div className="w-80 h-80 lg:w-96 lg:h-96 relative">
@@ -81,7 +106,7 @@ const Home = () => {
                   <FaHeart className="text-coral-500 dark:text-coral-400 text-xl" />
                 </div>
               </div>
-            </div>
+            </ScrollReveal>
           </div>
         </div>
       </section>
@@ -90,10 +115,10 @@ const Home = () => {
       <section className="py-16 bg-teal-600 dark:bg-teal-800">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            <StatCard number="500+" label="Orphanages" />
-            <StatCard number="10K+" label="Children" />
-            <StatCard number="25K+" label="Donors" />
-            <StatCard number="$2M+" label="Donated" />
+            <ScrollReveal animation="fade-up" delay={0}><StatCard number={stats.orphanages} label="Orphanages" /></ScrollReveal>
+            <ScrollReveal animation="fade-up" delay={100}><StatCard number={stats.children} label="Children" /></ScrollReveal>
+            <ScrollReveal animation="fade-up" delay={200}><StatCard number={stats.volunteers} label="Volunteers" /></ScrollReveal>
+            <ScrollReveal animation="fade-up" delay={300}><StatCard number={formatAmount(stats.donated)} label="Donated" /></ScrollReveal>
           </div>
         </div>
       </section>
@@ -101,7 +126,7 @@ const Home = () => {
       {/* Features Section */}
       <section className="py-20 bg-cream-100 dark:bg-dark-800 transition-colors duration-300">
         <div className="container mx-auto px-6">
-          <div className="text-center mb-16">
+          <ScrollReveal animation="fade-up" className="text-center mb-16">
             <span className="inline-block px-4 py-2 bg-coral-100 dark:bg-coral-900/30 text-coral-600 dark:text-coral-400 rounded-full text-sm font-medium mb-4">
               Our Services
             </span>
@@ -111,24 +136,30 @@ const Home = () => {
             <p className="text-teal-700 dark:text-cream-200 max-w-2xl mx-auto">
               We provide a seamless platform for connecting caring individuals with orphanages in need.
             </p>
-          </div>
+          </ScrollReveal>
           
           <div className="grid md:grid-cols-3 gap-8">
-            <FeatureCard 
-              icon={<FaUsers className="text-5xl text-coral-500 dark:text-coral-400" />}
-              title="Connect"
-              description="Register as a user, volunteer, or admin to join our community of caring individuals."
-            />
-            <FeatureCard 
-              icon={<FaDonate className="text-5xl text-teal-500 dark:text-teal-400" />}
-              title="Support"
-              description="Donate, volunteer, or sponsor children at orphanages near you."
-            />
-            <FeatureCard 
-              icon={<FaHeart className="text-5xl text-coral-500 dark:text-coral-400" />}
-              title="Transform"
-              description="Watch lives change as your support reaches those who need it most."
-            />
+            <ScrollReveal animation="fade-up" delay={0}>
+              <FeatureCard 
+                icon={<FaUsers className="text-5xl text-coral-500 dark:text-coral-400" />}
+                title="Connect"
+                description="Register as a user, volunteer, or admin to join our community of caring individuals."
+              />
+            </ScrollReveal>
+            <ScrollReveal animation="fade-up" delay={150}>
+              <FeatureCard 
+                icon={<FaDonate className="text-5xl text-teal-500 dark:text-teal-400" />}
+                title="Support"
+                description="Donate, volunteer, or sponsor children at orphanages near you."
+              />
+            </ScrollReveal>
+            <ScrollReveal animation="fade-up" delay={300}>
+              <FeatureCard 
+                icon={<FaHeart className="text-5xl text-coral-500 dark:text-coral-400" />}
+                title="Transform"
+                description="Watch lives change as your support reaches those who need it most."
+              />
+            </ScrollReveal>
           </div>
         </div>
       </section>
@@ -136,52 +167,34 @@ const Home = () => {
       {/* Services Grid */}
       <section className="py-20 bg-cream-50 dark:bg-dark-900 transition-colors duration-300">
         <div className="container mx-auto px-6">
-          <div className="text-center mb-16">
+          <ScrollReveal animation="fade-up" className="text-center mb-16">
             <span className="inline-block px-4 py-2 bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-full text-sm font-medium mb-4">
               What We Offer
             </span>
             <h2 className="text-4xl font-playfair font-bold text-teal-900 dark:text-cream-50">
               Our <span className="text-coral-500 dark:text-coral-400">Services</span>
             </h2>
-          </div>
+          </ScrollReveal>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <ServiceCard 
-              icon={<FaDonate />}
-              title="Donations"
-              description="Make secure donations directly to orphanages of your choice."
-              color="coral"
-            />
-            <ServiceCard 
-              icon={<FaCalendarAlt />}
-              title="Appointments"
-              description="Schedule visits and volunteering sessions at orphanages."
-              color="teal"
-            />
-            <ServiceCard 
-              icon={<FaComments />}
-              title="Chat Support"
-              description="Connect directly with orphanage administrators."
-              color="coral"
-            />
-            <ServiceCard 
-              icon={<FaChild />}
-              title="Child Sponsorship"
-              description="Sponsor a child's education and daily needs."
-              color="teal"
-            />
-            <ServiceCard 
-              icon={<FaUsers />}
-              title="Volunteer Programs"
-              description="Join our volunteer network and make a difference."
-              color="coral"
-            />
-            <ServiceCard 
-              icon={<FaHandHoldingHeart />}
-              title="Emergency Relief"
-              description="Support orphanages during emergencies and crises."
-              color="teal"
-            />
+            <ScrollReveal animation="fade-up" delay={0}>
+              <ServiceCard icon={<FaDonate />} title="Donations" description="Make secure donations directly to orphanages of your choice." color="coral" />
+            </ScrollReveal>
+            <ScrollReveal animation="fade-up" delay={100}>
+              <ServiceCard icon={<FaCalendarAlt />} title="Appointments" description="Schedule visits and volunteering sessions at orphanages." color="teal" />
+            </ScrollReveal>
+            <ScrollReveal animation="fade-up" delay={200}>
+              <ServiceCard icon={<FaComments />} title="Chat Support" description="Connect directly with orphanage administrators." color="coral" />
+            </ScrollReveal>
+            <ScrollReveal animation="fade-up" delay={300}>
+              <ServiceCard icon={<FaChild />} title="Child Sponsorship" description="Sponsor a child's education and daily needs." color="teal" />
+            </ScrollReveal>
+            <ScrollReveal animation="fade-up" delay={400}>
+              <ServiceCard icon={<FaUsers />} title="Volunteer Programs" description="Join our volunteer network and make a difference." color="coral" />
+            </ScrollReveal>
+            <ScrollReveal animation="fade-up" delay={500}>
+              <ServiceCard icon={<FaHandHoldingHeart />} title="Emergency Relief" description="Support orphanages during emergencies and crises." color="teal" />
+            </ScrollReveal>
           </div>
         </div>
       </section>
@@ -192,7 +205,7 @@ const Home = () => {
           <div className="absolute top-10 left-10 w-40 h-40 bg-white rounded-full blur-3xl"></div>
           <div className="absolute bottom-10 right-10 w-60 h-60 bg-white rounded-full blur-3xl"></div>
         </div>
-        <div className="container mx-auto px-6 text-center relative z-10">
+        <ScrollReveal animation="zoom-in" className="container mx-auto px-6 text-center relative z-10">
           <h2 className="text-4xl font-playfair font-bold text-white mb-6">
             Ready to Make a Difference?
           </h2>
@@ -202,7 +215,7 @@ const Home = () => {
           <Link to="/register" className="inline-block bg-white text-coral-600 font-bold py-4 px-8 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
             Join SoulConnect Today
           </Link>
-        </div>
+        </ScrollReveal>
       </section>
 
       {/* Footer */}
@@ -229,6 +242,12 @@ const Home = () => {
       </footer>
     </div>
   )
+}
+
+const formatAmount = (amount) => {
+  if (amount >= 1000000) return `$${(amount / 1000000).toFixed(1)}M`
+  if (amount >= 1000) return `$${(amount / 1000).toFixed(0)}K`
+  return `$${amount}`
 }
 
 const StatCard = ({ number, label }) => (

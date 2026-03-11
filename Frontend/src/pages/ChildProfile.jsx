@@ -11,6 +11,7 @@ import AppointmentRequestModal from '../components/AppointmentRequestModal'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 import { childrenAPI } from '../services/api'
+import { ScrollReveal } from '../hooks/useScrollReveal'
 
 const ChildProfile = () => {
   const { id } = useParams()
@@ -181,7 +182,7 @@ const ChildProfile = () => {
               <div className="grid lg:grid-cols-3 gap-8">
 
                 {/* Left Column - Photo & Quick Info */}
-                <div className="lg:col-span-1">
+                <ScrollReveal animation="fade-right" className="lg:col-span-1">
                   {/* Profile Image Card */}
                   <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-xl overflow-hidden transition-colors duration-300">
                     <div className="relative aspect-square overflow-hidden bg-cream-100 dark:bg-dark-700">
@@ -294,10 +295,10 @@ const ChildProfile = () => {
                       </div>
                     </>
                   )}
-                </div>
+                </ScrollReveal>
 
                 {/* Right Column - Details */}
-                <div className="lg:col-span-2 space-y-6">
+                <ScrollReveal animation="fade-left" delay={200} className="lg:col-span-2 space-y-6">
 
                   {/* Education & Health Cards */}
                   <div className="grid sm:grid-cols-2 gap-6">
@@ -397,7 +398,7 @@ const ChildProfile = () => {
                     </div>
                   )}
 
-                </div>
+                </ScrollReveal>
               </div>
             </div>
           </section>
@@ -405,7 +406,7 @@ const ChildProfile = () => {
           {/* Bottom CTA - Hidden for orphanage admins */}
           {user?.role !== 'orphanAdmin' && (
             <section className="py-16 bg-gradient-to-r from-teal-700 to-teal-800 dark:from-dark-800 dark:to-dark-950">
-              <div className="container mx-auto px-6 text-center">
+              <ScrollReveal animation="zoom-in" className="container mx-auto px-6 text-center">
                 <h2 className="text-3xl font-playfair font-bold text-white mb-4">
                   Every Child Deserves Love & Care
                 </h2>
@@ -426,7 +427,7 @@ const ChildProfile = () => {
                     Browse More Children
                   </Link>
                 </div>
-              </div>
+              </ScrollReveal>
             </section>
           )}
 

@@ -14,6 +14,7 @@ import { toast } from 'react-toastify'
 import Navbar from '../components/Navbar'
 import { appointmentAPI, orphanagesAPI, childrenAPI } from '../services/api'
 import { useConfirm } from '../context/ConfirmContext'
+import { ScrollReveal } from '../hooks/useScrollReveal'
 
 const statusMeta = {
   pending: {
@@ -46,9 +47,14 @@ const statusMeta = {
     badge: 'bg-sky-100 text-sky-800 border border-sky-200 dark:bg-sky-500/20 dark:text-sky-100 dark:border-sky-400/30',
     icon: FaInfoCircle,
   },
+  completed: {
+    label: 'Completed',
+    badge: 'bg-teal-100 text-teal-700 border border-teal-200 dark:bg-teal-500/20 dark:text-teal-100 dark:border-teal-400/30',
+    icon: FaCheckCircle,
+  },
 }
 
-const statusFilters = ['all', 'pending', 'needsconfirmation', 'approved', 'rejected', 'cancelled', 'blocked']
+const statusFilters = ['all', 'pending', 'needsconfirmation', 'approved', 'rejected', 'cancelled', 'blocked', 'completed']
 
 const formatDateTime = (value, options = {}) => {
   if (!value) return 'Not set'
@@ -166,7 +172,7 @@ const Appointments = () => {
       const response = await appointmentAPI.getAll()
       const list = extractAppointments(response.data)
         .map((item) => ({ ...item, status: (item.status || 'pending').toLowerCase() }))
-        .sort((a, b) => new Date(a.requestedAt) - new Date(b.requestedAt))
+        .sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt))
 
       setAppointments(list)
       await hydrateLookups(list)
@@ -222,7 +228,8 @@ const Appointments = () => {
     const pending = appointments.filter((appt) => ['pending', 'needsconfirmation'].includes(appt.status)).length
     const approved = appointments.filter((appt) => appt.status === 'approved').length
     const rejected = appointments.filter((appt) => appt.status === 'rejected').length
-    return { total, pending, approved, rejected }
+    const completed = appointments.filter((appt) => appt.status === 'completed').length
+    return { total, pending, approved, rejected, completed }
   }, [appointments])
 
   const getFilterLabel = (status) => {
@@ -290,7 +297,7 @@ const Appointments = () => {
       <Navbar />
 
       <section className="pt-32 pb-16 bg-gradient-to-br from-coral-500 to-teal-600 dark:from-dark-800 dark:to-dark-950">
-        <div className="container mx-auto px-6">
+        <ScrollReveal animation="fade-up" className="container mx-auto px-6">
           <div className="flex flex-col gap-4 text-white">
             <p className="text-sm uppercase tracking-[0.3em] text-white/80">Appointments</p>
             <h1 className="text-4xl font-playfair font-bold">Manage Your Visits</h1>
@@ -307,28 +314,32 @@ const Appointments = () => {
               </button>
             </div>
           </div>
-        </div>
+        </ScrollReveal>
       </section>
 
       <section className="-mt-12 pb-16">
         <div className="container mx-auto px-6">
           <div className="grid gap-4 md:grid-cols-4">
-            <div className="rounded-2xl bg-white p-5 shadow-sm dark:bg-dark-800">
+            <ScrollReveal animation="fade-up" className="rounded-2xl bg-white p-5 shadow-sm dark:bg-dark-800">
               <p className="text-sm text-teal-500">Total requests</p>
               <p className="text-3xl font-bold text-teal-900 dark:text-cream-50">{stats.total}</p>
-            </div>
-            <div className="rounded-2xl bg-white p-5 shadow-sm dark:bg-dark-800">
+            </ScrollReveal>
+            <ScrollReveal animation="fade-up" delay={100} className="rounded-2xl bg-white p-5 shadow-sm dark:bg-dark-800">
               <p className="text-sm text-amber-500">Pending</p>
               <p className="text-3xl font-bold text-teal-900 dark:text-cream-50">{stats.pending}</p>
-            </div>
-            <div className="rounded-2xl bg-white p-5 shadow-sm dark:bg-dark-800">
+            </ScrollReveal>
+            <ScrollReveal animation="fade-up" delay={200} className="rounded-2xl bg-white p-5 shadow-sm dark:bg-dark-800">
               <p className="text-sm text-emerald-500">Approved</p>
               <p className="text-3xl font-bold text-teal-900 dark:text-cream-50">{stats.approved}</p>
-            </div>
-            <div className="rounded-2xl bg-white p-5 shadow-sm dark:bg-dark-800">
+            </ScrollReveal>
+            <ScrollReveal animation="fade-up" delay={300} className="rounded-2xl bg-white p-5 shadow-sm dark:bg-dark-800">
               <p className="text-sm text-rose-500">Rejected</p>
               <p className="text-3xl font-bold text-teal-900 dark:text-cream-50">{stats.rejected}</p>
-            </div>
+            </ScrollReveal>
+            <ScrollReveal animation="fade-up" delay={400} className="rounded-2xl bg-white p-5 shadow-sm dark:bg-dark-800">
+              <p className="text-sm text-teal-500">Completed</p>
+              <p className="text-3xl font-bold text-teal-900 dark:text-cream-50">{stats.completed}</p>
+            </ScrollReveal>
           </div>
 
           <div className="mt-10 overflow-x-auto">

@@ -3,6 +3,7 @@ import { MdOutlineVolunteerActivism } from 'react-icons/md'
 import { useAdminDashboardContext } from './AdminLayout'
 import AdministratorIdentityCard from './components/AdministratorIdentityCard'
 import { useAuth } from '../../../context/AuthContext'
+import { ScrollReveal } from '../../../hooks/useScrollReveal'
 
 const StatCard = ({ title, value, subtitle, accent }) => (
   <div className="rounded-3xl border border-white/5 bg-gradient-to-br from-slate-900/70 to-slate-900/30 p-6 shadow-2xl shadow-black/30">
@@ -104,12 +105,15 @@ const DashboardOverview = () => {
       {showIdentityCard && (
         <AdministratorIdentityCard user={user} adminProfile={user.adminProfile} variant="overview" />
       )}
+      <ScrollReveal animation="fade-up">
       <section>
         <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Dashboard</p>
         <h2 className="mt-2 text-3xl font-semibold text-white">Unified orphanage intelligence</h2>
         <p className="text-sm text-slate-400">Insights refreshed in real-time from children, donations, appointments and volunteer services.</p>
       </section>
+      </ScrollReveal>
 
+      <ScrollReveal animation="fade-up" delay={100}>
       <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         {overviewStats.map((stat) => (
           <div key={stat.title} className="relative overflow-hidden">
@@ -118,7 +122,9 @@ const DashboardOverview = () => {
           </div>
         ))}
       </section>
+      </ScrollReveal>
 
+      <ScrollReveal animation="fade-up" delay={200}>
       <section className="grid gap-8 lg:grid-cols-2">
         <DonationTrend series={metrics.donationSeries} />
         <div className="space-y-6">
@@ -146,7 +152,9 @@ const DashboardOverview = () => {
           <ActivityTimeline activities={data.recentActivities} />
         </div>
       </section>
+      </ScrollReveal>
 
+      <ScrollReveal animation="fade-up" delay={300}>
       <section className="grid gap-6 md:grid-cols-2">
         <div className="rounded-3xl border border-white/5 bg-slate-900/40 p-6">
           <div className="flex items-center justify-between">
@@ -189,6 +197,7 @@ const DashboardOverview = () => {
           </div>
         </div>
       </section>
+      </ScrollReveal>
     </div>
   )
 }

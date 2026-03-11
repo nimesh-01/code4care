@@ -75,9 +75,20 @@ const requestAppointment = async (req, res) => {
             return res.status(403).json({ msg: 'You are currently blocked from scheduling appointments with this orphanage.' });
         }
 
+        // Auto-complete any past approved/needsConfirmation appointments
+        await Appointment.updateMany(
+            {
+                ...baseFilter,
+                status: { $in: ['approved', 'needsConfirmation'] },
+                requestedAt: { $lt: new Date() }
+            },
+            { $set: { status: 'completed' } }
+        );
+
         const activeRequest = await Appointment.findOne({
             ...baseFilter,
-            status: { $in: ['pending', 'approved', 'needsConfirmation'] }
+            status: { $in: ['pending', 'approved', 'needsConfirmation'] },
+            requestedAt: { $gte: new Date() }
         });
 
         if (activeRequest) {
@@ -120,7 +131,10 @@ const requestAppointment = async (req, res) => {
                 requesterName: requesterDetails ? `${requesterDetails.fullname?.firstname || ''} ${requesterDetails.fullname?.lastname || ''}`.trim() : 'A visitor',
                 requesterType: role === 'volunteer' ? 'Volunteer' : 'User',
                 requestedAt: appt.requestedAt,
-                purpose: appt.purpose
+                purpose: appt.purpose,
+                appointmentId: appt._id.toString(),
+                requesterId: id,
+                orphanageAdminId: orphanageDetails.adminId || null,
             });
         }
 
@@ -148,6 +162,17 @@ const getAllAppointments = async (req, res) => {
     }
 
     try {
+        // Auto-complete past approved/needsConfirmation appointments
+        await Appointment.updateMany(
+            {
+                ...(filter.requesterId ? { requesterId: filter.requesterId } : {}),
+                ...(filter.orphanageId ? { orphanageId: filter.orphanageId } : {}),
+                status: { $in: ['approved', 'needsConfirmation'] },
+                requestedAt: { $lt: new Date() }
+            },
+            { $set: { status: 'completed' } }
+        );
+
         const appts = await Appointment.find(filter).sort({ [sort]: order === 'asc' ? 1 : -1 });
         res.json({ appointments: appts });
     } catch (err) {
@@ -236,7 +261,10 @@ const approveAppointment = async (req, res) => {
                 orphanageName: orphanageDetails?.name || 'the orphanage',
                 requestedAt: appt.requestedAt,
                 purpose: appt.purpose,
-                adminResponse: appt.adminResponse
+                adminResponse: appt.adminResponse,
+                appointmentId: appt._id.toString(),
+                requesterId: appt.requesterId.toString(),
+                requesterRole: requesterDetails.role || 'user',
             });
         } else {
             await publishToQueue('APPOINTMENT_NOTIFICATION.APPROVED', {
@@ -245,7 +273,10 @@ const approveAppointment = async (req, res) => {
                 orphanageName: orphanageDetails?.name || 'the orphanage',
                 requestedAt: appt.requestedAt,
                 purpose: appt.purpose,
-                adminResponse: appt.adminResponse
+                adminResponse: appt.adminResponse,
+                appointmentId: appt._id.toString(),
+                requesterId: appt.requesterId.toString(),
+                requesterRole: requesterDetails.role || 'user',
             });
         }
     }
@@ -291,7 +322,10 @@ const rejectAppointment = async (req, res) => {
                 orphanageName: orphanageDetails?.name || 'the orphanage',
                 requestedAt: appt.requestedAt,
                 purpose: appt.purpose,
-                adminResponse: appt.adminResponse
+                adminResponse: appt.adminResponse,
+                appointmentId: appt._id.toString(),
+                requesterId: appt.requesterId.toString(),
+                requesterRole: requesterDetails.role || 'user',
             });
         }
 
@@ -337,7 +371,9 @@ const cancelAppointment = async (req, res) => {
                 orphanageName: orphanageDetails.name,
                 requesterName: requesterDetails ? `${requesterDetails.fullname?.firstname || ''} ${requesterDetails.fullname?.lastname || ''}`.trim() : 'A visitor',
                 requestedAt: appt.requestedAt,
-                purpose: appt.purpose
+                purpose: appt.purpose,
+                appointmentId: appt._id.toString(),
+                orphanageAdminId: orphanageDetails.adminId || null,
             });
         }
 
@@ -376,7 +412,10 @@ const blockAppointment = async (req, res) => {
                 orphanageName: orphanageDetails?.name || 'the orphanage',
                 requestedAt: appt.requestedAt,
                 purpose: appt.purpose,
-                adminResponse: appt.adminResponse
+                adminResponse: appt.adminResponse,
+                appointmentId: appt._id.toString(),
+                requesterId: appt.requesterId.toString(),
+                requesterRole: requesterDetails.role || 'user',
             });
         }
 
@@ -431,7 +470,10 @@ const cancelAppointmentByAdmin = async (req, res) => {
                 orphanageName: orphanageDetails?.name || 'the orphanage',
                 requestedAt: appt.requestedAt,
                 purpose: appt.purpose,
-                adminResponse: appt.adminResponse
+                adminResponse: appt.adminResponse,
+                appointmentId: appt._id.toString(),
+                requesterId: appt.requesterId.toString(),
+                requesterRole: requesterDetails.role || 'user',
             });
         }
 
@@ -472,6 +514,9 @@ const sendReminders = async (req, res) => {
                     orphanageName: orphanageDetails?.name || 'the orphanage',
                     requestedAt: appt.requestedAt,
                     purpose: appt.purpose,
+                    appointmentId: appt._id.toString(),
+                    requesterId: appt.requesterId.toString(),
+                    requesterRole: requesterDetails.role || 'user',
                 });
                 sentCount++;
             }

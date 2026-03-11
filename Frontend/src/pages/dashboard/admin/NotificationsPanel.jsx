@@ -1,6 +1,9 @@
 import { useEffect, useState, useCallback } from 'react'
-import { FaBell, FaCheck, FaCheckDouble, FaTrash, FaFilter, FaChevronDown } from 'react-icons/fa'
+import { FaBell, FaCheck, FaCheckDouble, FaTrash, FaFilter, FaChevronDown, FaPaperPlane, FaTimes } from 'react-icons/fa'
+import { toast } from 'react-toastify'
 import { useNotifications } from '../../../context/NotificationContext'
+import { notificationAPI, eventAPI } from '../../../services/api'
+import { ScrollReveal } from '../../../hooks/useScrollReveal'
 
 const typeAccent = {
   appointment_request: 'bg-indigo-500/20 text-indigo-200',
@@ -50,10 +53,54 @@ const NotificationsPanel = () => {
 
   const [filter, setFilter] = useState(undefined)
   const [showFilterMenu, setShowFilterMenu] = useState(false)
+  const [showCompose, setShowCompose] = useState(false)
+  const [events, setEvents] = useState([])
+  const [composeForm, setComposeForm] = useState({ title: '', message: '', targetEvent: '' })
+  const [sending, setSending] = useState(false)
 
   useEffect(() => {
     fetchNotifications(1, filter)
   }, [fetchNotifications, filter])
+
+  // Fetch events for "Send to event participants" feature
+  useEffect(() => {
+    if (showCompose && events.length === 0) {
+      eventAPI.getAll().then(res => {
+        const list = res.data?.events || res.data || []
+        setEvents(list.filter(e => e.participants?.length > 0))
+      }).catch(() => {})
+    }
+  }, [showCompose])
+
+  const handleComposeSend = async (e) => {
+    e.preventDefault()
+    if (!composeForm.title.trim() || !composeForm.message.trim()) {
+      toast.error('Title and message are required')
+      return
+    }
+
+    setSending(true)
+    try {
+      if (composeForm.targetEvent) {
+        // Send via event reminder endpoint (goes through RabbitMQ to notification service)
+        await eventAPI.sendReminder(composeForm.targetEvent, { message: `${composeForm.title}: ${composeForm.message}` })
+        const ev = events.find(e => e._id === composeForm.targetEvent)
+        toast.success(`Notification sent to ${ev?.participants?.length || 0} event participants`)
+      } else {
+        toast.error('Please select an event to send the notification to')
+        setSending(false)
+        return
+      }
+      setComposeForm({ title: '', message: '', targetEvent: '' })
+      setShowCompose(false)
+      // Refresh notifications after a brief delay
+      setTimeout(() => fetchNotifications(1, filter), 1000)
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to send notification')
+    } finally {
+      setSending(false)
+    }
+  }
 
   const loadMore = useCallback(() => {
     if (pagination.hasMore && !loading) {
@@ -63,6 +110,7 @@ const NotificationsPanel = () => {
 
   return (
     <div className="space-y-8">
+      <ScrollReveal animation="fade-up">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.4em] text-teal-500 dark:text-cream-300">Notifications</p>
@@ -122,9 +170,97 @@ const NotificationsPanel = () => {
               <FaTrash className="text-xs" /> Clear read
             </button>
           )}
+
+          <button
+            onClick={() => setShowCompose(!showCompose)}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-coral-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-lg hover:shadow-xl transition"
+          >
+            <FaPaperPlane className="text-xs" /> Send Notification
+          </button>
         </div>
       </header>
+      </ScrollReveal>
 
+      {/* Compose Notification */}
+      {showCompose && (
+        <div className="rounded-3xl border border-coral-200 dark:border-coral-500/20 bg-white dark:bg-dark-800/80 p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <FaPaperPlane className="text-xl text-coral-400" />
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-teal-500 dark:text-cream-300">Compose</p>
+                <h3 className="text-lg font-semibold text-teal-900 dark:text-cream-50">Send notification to participants</h3>
+              </div>
+            </div>
+            <button onClick={() => setShowCompose(false)} className="text-teal-500 hover:text-coral-500 transition">
+              <FaTimes />
+            </button>
+          </div>
+
+          <form onSubmit={handleComposeSend} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-teal-700 dark:text-cream-200 mb-1">Select Event *</label>
+              <select
+                value={composeForm.targetEvent}
+                onChange={e => setComposeForm(prev => ({ ...prev, targetEvent: e.target.value }))}
+                required
+                className="w-full rounded-xl border border-cream-200 bg-cream-50 px-4 py-3 text-teal-900 focus:border-coral-400 focus:outline-none dark:border-dark-600 dark:bg-dark-800 dark:text-cream-50"
+              >
+                <option value="">Select an event with participants...</option>
+                {events.map(ev => (
+                  <option key={ev._id} value={ev._id}>
+                    {ev.title} ({ev.participants?.length || 0} participants)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-teal-700 dark:text-cream-200 mb-1">Title *</label>
+              <input
+                value={composeForm.title}
+                onChange={e => setComposeForm(prev => ({ ...prev, title: e.target.value }))}
+                required
+                maxLength={200}
+                className="w-full rounded-xl border border-cream-200 bg-cream-50 px-4 py-3 text-teal-900 focus:border-coral-400 focus:outline-none dark:border-dark-600 dark:bg-dark-800 dark:text-cream-50"
+                placeholder="Reminder title..."
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-teal-700 dark:text-cream-200 mb-1">Message *</label>
+              <textarea
+                value={composeForm.message}
+                onChange={e => setComposeForm(prev => ({ ...prev, message: e.target.value }))}
+                required
+                rows={3}
+                maxLength={1000}
+                className="w-full rounded-xl border border-cream-200 bg-cream-50 px-4 py-3 text-teal-900 focus:border-coral-400 focus:outline-none dark:border-dark-600 dark:bg-dark-800 dark:text-cream-50"
+                placeholder="Write your notification message..."
+              />
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowCompose(false)}
+                className="rounded-full border border-cream-200 px-6 py-2 text-sm font-medium text-teal-700 hover:bg-cream-50 dark:border-dark-600 dark:text-cream-200 dark:hover:bg-dark-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={sending}
+                className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-coral-500 to-teal-500 px-6 py-2 text-sm font-medium text-white disabled:opacity-70 transition"
+              >
+                <FaPaperPlane className="text-xs" /> {sending ? 'Sending...' : 'Send'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      <ScrollReveal animation="fade-up" delay={200}>
       <div className="rounded-3xl border border-cream-200 dark:border-dark-700 bg-white/80 dark:bg-dark-800/60 p-6">
         <div className="flex items-center gap-3 mb-6">
           <FaBell className="text-3xl text-coral-400" />
@@ -189,6 +325,7 @@ const NotificationsPanel = () => {
           </div>
         )}
       </div>
+      </ScrollReveal>
     </div>
   )
 }

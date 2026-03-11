@@ -1,11 +1,7 @@
 const { validationResult } = require('express-validator');
 const HelpRequest = require('../models/helpRequest.model');
 const axios = require('axios');
-
-// Notification helper (placeholder for actual implementation)
-const sendNotification = ({ to, subject, message }) => {
-    console.log('Notify', to, subject, message);
-};
+const { publishToQueue } = require('../broker/broker');
 
 const sanitizeMessageContent = (value) => {
     if (typeof value !== 'string') return '';
@@ -65,12 +61,12 @@ const createHelpRequest = async (req, res) => {
             createdBy: userId
         });
 
-        // Notify eligible volunteers
-        sendNotification({
-            to: 'volunteers:all',
-            subject: 'New Help Request',
-            message: `A new ${requestType} help request has been created.`
-        });
+        // Notify orphanage admin via RabbitMQ
+        publishToQueue('HELP_REQUEST_NOTIFICATION.CREATED', {
+            orphanageAdminId: userId,
+            title: requestType,
+            helpRequestId: helpRequest._id.toString(),
+        }).catch(err => console.error('Failed to publish help request created notification:', err.message));
 
         res.status(201).json({
             message: 'Help request created successfully',
@@ -162,12 +158,15 @@ const acceptHelpRequest = async (req, res) => {
         }
         await helpRequest.save();
 
-        // Notify orphanage admin
-        sendNotification({
-            to: `orphanage:${helpRequest.orphanageId}`,
-            subject: 'Help Request Accepted',
-            message: `A volunteer has accepted your ${helpRequest.requestType} help request.`
-        });
+        // Notify orphanage admin and volunteer via RabbitMQ
+        publishToQueue('HELP_REQUEST_NOTIFICATION.ACCEPTED', {
+            orphanageAdminId: helpRequest.createdBy ? helpRequest.createdBy.toString() : null,
+            volunteerId: volunteerId,
+            volunteerName: req.user.username || 'A volunteer',
+            title: helpRequest.requestType,
+            helpRequestId: helpRequest._id.toString(),
+            orphanageName: helpRequest.orphanageId ? helpRequest.orphanageId.toString() : '',
+        }).catch(err => console.error('Failed to publish help request accepted notification:', err.message));
 
         res.json({
             message: 'Help request accepted successfully',
@@ -207,12 +206,13 @@ const completeHelpRequest = async (req, res) => {
         helpRequest.completedAt = new Date();
         await helpRequest.save();
 
-        // Notify orphanage admin
-        sendNotification({
-            to: `orphanage:${helpRequest.orphanageId}`,
-            subject: 'Help Request Completed',
-            message: `A volunteer has completed the ${helpRequest.requestType} help request.`
-        });
+        // Notify orphanage admin and volunteer via RabbitMQ
+        publishToQueue('HELP_REQUEST_NOTIFICATION.COMPLETED', {
+            orphanageAdminId: helpRequest.createdBy ? helpRequest.createdBy.toString() : null,
+            volunteerId: volunteerId,
+            title: helpRequest.requestType,
+            helpRequestId: helpRequest._id.toString(),
+        }).catch(err => console.error('Failed to publish help request completed notification:', err.message));
 
         res.json({
             message: 'Help request completed successfully',

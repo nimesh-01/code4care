@@ -9,6 +9,7 @@ import { toast } from 'react-toastify'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
 import api, { authAPI } from '../../services/api'
+import { ScrollReveal } from '../../hooks/useScrollReveal'
 
 const Register = () => {
   const [step, setStep] = useState(1)
@@ -417,6 +418,7 @@ const Register = () => {
 
       <div className="w-full max-w-lg">
         {/* Logo */}
+        <ScrollReveal animation="fade-down">
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 text-3xl font-playfair font-bold text-white">
             <FaHeart className="text-white" />
@@ -424,8 +426,10 @@ const Register = () => {
           </Link>
           <p className="text-white/80 mt-2">Join our community and make a difference!</p>
         </div>
+        </ScrollReveal>
 
         {/* Registration Card */}
+        <ScrollReveal animation="fade-up" delay={200}>
         <div className="bg-white dark:bg-dark-800 rounded-2xl p-8 shadow-2xl transition-colors duration-300">
           {/* Progress Bar */}
           <div className="mb-8">
@@ -1343,6 +1347,7 @@ const Register = () => {
             </Link>
           </p>
         </div>
+        </ScrollReveal>
       </div>
     </div>
   )

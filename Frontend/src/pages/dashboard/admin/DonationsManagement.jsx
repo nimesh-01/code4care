@@ -3,6 +3,7 @@ import { FaDownload, FaSearch, FaRegChartBar, FaFileExport } from 'react-icons/f
 import { useAdminDashboardContext } from './AdminLayout'
 import { donationAPI } from '../../../services/api'
 import { toast } from 'react-toastify'
+import { ScrollReveal } from '../../../hooks/useScrollReveal'
 
 const DonationRow = ({ donation, onDownloadReceipt, downloading }) => {
   const status = donation.status || 'pending'
@@ -249,6 +250,7 @@ const DonationsManagement = () => {
 
   return (
     <div className="space-y-8">
+      <ScrollReveal animation="fade-up">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Donations</p>
@@ -270,7 +272,9 @@ const DonationsManagement = () => {
           </button>
         </div>
       </header>
+      </ScrollReveal>
 
+      <ScrollReveal animation="fade-up" delay={100}>
       <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-3xl border border-white/5 bg-slate-900/40 p-5">
           <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Total impact</p>
@@ -295,7 +299,9 @@ const DonationsManagement = () => {
           <p className="text-xs text-slate-500">Require follow-up</p>
         </div>
       </section>
+      </ScrollReveal>
 
+      <ScrollReveal animation="fade-up" delay={200}>
       <div className="rounded-3xl border border-white/5 bg-slate-900/40 p-6">
         {(loadingDonations || donationError) && (
           <div className={`mb-4 rounded-2xl border px-4 py-3 text-sm ${
@@ -408,7 +414,9 @@ const DonationsManagement = () => {
           </div>
         </div>
       </div>
+      </ScrollReveal>
 
+      <ScrollReveal animation="fade-up" delay={300}>
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-3xl border border-white/5 bg-slate-900/40 p-6">
           <div className="flex items-center justify-between">
@@ -440,6 +448,7 @@ const DonationsManagement = () => {
           </ul>
         </div>
       </section>
+      </ScrollReveal>
     </div>
   )
 }

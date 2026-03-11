@@ -12,6 +12,7 @@ import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 import { orphanagesAPI, childrenAPI, postAPI } from '../services/api'
 import MediaCarousel from './posts/MediaCarousel'
+import { ScrollReveal } from '../hooks/useScrollReveal'
 
 const OrphanageProfile = () => {
   const { id } = useParams()
@@ -249,7 +250,7 @@ const OrphanageProfile = () => {
               <div className="grid lg:grid-cols-3 gap-8">
 
                 {/* Left Column - Contact & Quick Info */}
-                <div className="lg:col-span-1 space-y-6">
+                <ScrollReveal animation="fade-right" className="lg:col-span-1 space-y-6">
                   {/* Contact Card */}
                   <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-xl p-6 transition-colors duration-300">
                     <h3 className="text-lg font-bold text-teal-900 dark:text-cream-50 mb-5">Contact Information</h3>
@@ -400,10 +401,10 @@ const OrphanageProfile = () => {
                       </Link>
                     </div>
                   )}
-                </div>
+                </ScrollReveal>
 
                 {/* Right Column - Details & Children */}
-                <div className="lg:col-span-2 space-y-6">
+                <ScrollReveal animation="fade-left" delay={200} className="lg:col-span-2 space-y-6">
 
                   {/* Stats Row */}
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -634,14 +635,14 @@ const OrphanageProfile = () => {
                     </div>
                   )}
 
-                </div>
+                </ScrollReveal>
               </div>
             </div>
           </section>
 
           {/* Bottom CTA */}
           <section className="py-16 bg-gradient-to-r from-teal-700 to-teal-800 dark:from-dark-800 dark:to-dark-950">
-            <div className="container mx-auto px-6 text-center">
+            <ScrollReveal animation="zoom-in" className="container mx-auto px-6 text-center">
               <h2 className="text-3xl font-playfair font-bold text-white mb-4">
                 Make a Difference Today
               </h2>
@@ -662,7 +663,7 @@ const OrphanageProfile = () => {
                   Browse More Orphanages
                 </Link>
               </div>
-            </div>
+            </ScrollReveal>
           </section>
 
           {/* Footer */}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import {
   FaCalendarAlt,
@@ -17,6 +17,10 @@ import Navbar from '../components/Navbar'
 import { eventAPI, orphanagesAPI } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import { useConfirm } from '../context/ConfirmContext'
+import { ScrollReveal } from '../hooks/useScrollReveal'
+import useInfiniteScroll from '../hooks/useInfiniteScroll'
+
+const ITEMS_PER_PAGE = 6
 
 const categoryColors = {
   Education: 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-200 dark:border-indigo-400/30',
@@ -152,34 +156,64 @@ const Events = () => {
   const confirmAction = useConfirm()
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(null)
   const [categoryFilter, setCategoryFilter] = useState('All')
   const [selectedEvent, setSelectedEvent] = useState(null)
   const [orphanageLookup, setOrphanageLookup] = useState({})
   const [joining, setJoining] = useState(false)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
 
   useEffect(() => {
-    fetchEvents()
+    fetchEvents(1, true)
   }, [])
 
-  const fetchEvents = async (withSpinner = true) => {
+  const fetchEvents = async (pageNum = 1, reset = false) => {
     try {
-      if (withSpinner) setLoading(true)
-      else setRefreshing(true)
+      if (reset) setLoading(true)
+      else setLoadingMore(true)
+      if (!reset) setRefreshing(false)
       setError(null)
 
-      const response = await eventAPI.getAll()
+      const params = { page: pageNum, limit: ITEMS_PER_PAGE }
+      const response = await eventAPI.getAll(params)
       const list = response.data?.events || response.data || []
-      setEvents(list)
+      const pagination = response.data?.pagination
+
+      if (reset) {
+        setEvents(list)
+      } else {
+        setEvents(prev => [...prev, ...list])
+      }
+      setPage(pageNum)
+      setHasMore(pagination?.hasMore ?? list.length === ITEMS_PER_PAGE)
       await hydrateLookups(list)
     } catch (err) {
       console.error('Failed to load events', err)
       setError('Unable to load events right now. Please try again later.')
     } finally {
       setLoading(false)
+      setLoadingMore(false)
       setRefreshing(false)
     }
+  }
+
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      fetchEvents(page + 1)
+    }
+  }, [loadingMore, hasMore, page])
+
+  const { sentinelRef } = useInfiniteScroll(loadMore, hasMore, loadingMore)
+
+  const handleRefresh = () => {
+    setEvents([])
+    setPage(1)
+    setHasMore(true)
+    setRefreshing(true)
+    fetchEvents(1, true)
   }
 
   const hydrateLookups = async (list) => {
@@ -209,7 +243,10 @@ const Events = () => {
       await eventAPI.join(eventId)
       toast.success('Successfully joined the event!')
       setSelectedEvent(null)
-      await fetchEvents(false)
+      setEvents([])
+      setPage(1)
+      setHasMore(true)
+      await fetchEvents(1, true)
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to join event')
     } finally {
@@ -231,7 +268,10 @@ const Events = () => {
       setJoining(true)
       await eventAPI.leave(eventId)
       toast.success('You have left the event')
-      await fetchEvents(false)
+      setEvents([])
+      setPage(1)
+      setHasMore(true)
+      await fetchEvents(1, true)
       if (selectedEvent?._id === eventId) {
         const res = await eventAPI.getById(eventId)
         setSelectedEvent(res.data?.event || res.data)
@@ -263,7 +303,7 @@ const Events = () => {
 
       {/* Hero */}
       <section className="pt-32 pb-16 bg-gradient-to-br from-coral-500 to-teal-600 dark:from-dark-800 dark:to-dark-950">
-        <div className="container mx-auto px-6">
+        <ScrollReveal animation="fade-up" className="container mx-auto px-6">
           <div className="flex flex-col gap-4 text-white">
             <p className="text-sm uppercase tracking-[0.3em] text-white/80">Community Events</p>
             <h1 className="text-4xl font-playfair font-bold">Discover & Participate</h1>
@@ -272,7 +312,7 @@ const Events = () => {
             </p>
             <div className="flex flex-wrap gap-3">
               <button
-                onClick={() => fetchEvents(false)}
+                onClick={handleRefresh}
                 className="inline-flex items-center gap-2 rounded-full bg-white/15 px-5 py-2 text-sm font-medium text-white transition hover:bg-white/25"
               >
                 <FaRedo className={refreshing ? 'animate-spin' : ''} />
@@ -280,29 +320,29 @@ const Events = () => {
               </button>
             </div>
           </div>
-        </div>
+        </ScrollReveal>
       </section>
 
       {/* Stats */}
       <section className="-mt-12 pb-4">
         <div className="container mx-auto px-6">
           <div className="grid gap-4 md:grid-cols-4">
-            <div className="rounded-2xl bg-white p-5 shadow-sm dark:bg-dark-800">
+            <ScrollReveal animation="fade-up" className="rounded-2xl bg-white p-5 shadow-sm dark:bg-dark-800">
               <p className="text-sm text-teal-500">Total Events</p>
               <p className="text-3xl font-bold text-teal-900 dark:text-cream-50">{stats.total}</p>
-            </div>
-            <div className="rounded-2xl bg-white p-5 shadow-sm dark:bg-dark-800">
+            </ScrollReveal>
+            <ScrollReveal animation="fade-up" delay={100} className="rounded-2xl bg-white p-5 shadow-sm dark:bg-dark-800">
               <p className="text-sm text-teal-500">Upcoming</p>
               <p className="text-3xl font-bold text-teal-900 dark:text-cream-50">{stats.upcoming}</p>
-            </div>
-            <div className="rounded-2xl bg-white p-5 shadow-sm dark:bg-dark-800">
+            </ScrollReveal>
+            <ScrollReveal animation="fade-up" delay={200} className="rounded-2xl bg-white p-5 shadow-sm dark:bg-dark-800">
               <p className="text-sm text-blue-500">Ongoing</p>
               <p className="text-3xl font-bold text-teal-900 dark:text-cream-50">{stats.ongoing}</p>
-            </div>
-            <div className="rounded-2xl bg-white p-5 shadow-sm dark:bg-dark-800">
+            </ScrollReveal>
+            <ScrollReveal animation="fade-up" delay={300} className="rounded-2xl bg-white p-5 shadow-sm dark:bg-dark-800">
               <p className="text-sm text-slate-500">Completed</p>
               <p className="text-3xl font-bold text-teal-900 dark:text-cream-50">{stats.completed}</p>
-            </div>
+            </ScrollReveal>
           </div>
         </div>
       </section>
@@ -337,7 +377,7 @@ const Events = () => {
             <div className="rounded-3xl bg-white p-10 text-center shadow dark:bg-dark-800">
               <FaInfoCircle className="mx-auto text-4xl text-coral-500" />
               <p className="mt-4 text-lg text-teal-700 dark:text-cream-100">{error}</p>
-              <button onClick={() => fetchEvents(true)} className="mt-6 rounded-full bg-coral-500 px-6 py-2 text-white">
+              <button onClick={() => fetchEvents(1, true)} className="mt-6 rounded-full bg-coral-500 px-6 py-2 text-white">
                 Try again
               </button>
             </div>
@@ -437,6 +477,17 @@ const Events = () => {
                 )
               })}
             </div>
+          )}
+          {/* Infinite scroll sentinel */}
+          {!loading && !error && hasMore && (
+            <div ref={sentinelRef} className="flex justify-center py-8">
+              {loadingMore && (
+                <div className="animate-spin rounded-full h-10 w-10 border-t-4 border-b-4 border-coral-500"></div>
+              )}
+            </div>
+          )}
+          {!loading && !error && !hasMore && events.length > 0 && (
+            <p className="text-center text-teal-500 dark:text-cream-400 py-6 text-sm">You've reached the end</p>
           )}
         </div>
       </section>

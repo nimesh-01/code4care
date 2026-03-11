@@ -308,6 +308,144 @@ module.exports = async () => {
     }
   });
 
+  // Appointment Needs Confirmation Email
+  subscribeToQueue("APPOINTMENT_NOTIFICATION.NEEDS_CONFIRMATION", async (data) => {
+    const appointmentDate = data.requestedAt ? new Date(data.requestedAt).toLocaleString() : 'To be confirmed';
+    const emailHTMLTemplate = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h1 style="color: #f0ad4e;">Appointment Schedule Updated ⏰</h1>
+      <p>Dear ${data.requesterName || "User"},</p>
+      <p>The orphanage has proposed a new date/time for your appointment. Please confirm the updated schedule.</p>
+      <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <p><strong>Orphanage:</strong> ${data.orphanageName || 'N/A'}</p>
+        <p><strong>New Date & Time:</strong> ${appointmentDate}</p>
+        ${data.adminResponse ? `<p><strong>Message:</strong> ${data.adminResponse}</p>` : ''}
+      </div>
+      <p>Please log in to confirm or reschedule.</p>
+      <p>Best regards,<br><strong>The SoulConnect Team</strong></p>
+    </div>`;
+
+    await sendEmail(
+      data.requesterEmail,
+      "Appointment Needs Confirmation - SoulConnect ⏰",
+      `Your appointment at ${data.orphanageName || 'the orphanage'} needs confirmation for ${appointmentDate}.`,
+      emailHTMLTemplate
+    );
+
+    if (data.requesterId) {
+      await createInAppNotification({
+        recipient: data.requesterId,
+        recipientRole: data.requesterRole || 'user',
+        type: 'appointment_request',
+        title: 'Appointment Needs Confirmation',
+        message: `Your appointment at ${data.orphanageName || 'the orphanage'} has a new proposed time. Please confirm.`,
+        data: { appointmentId: data.appointmentId, orphanageName: data.orphanageName },
+      })
+    }
+  });
+
+  // Appointment Blocked Email
+  subscribeToQueue("APPOINTMENT_NOTIFICATION.BLOCKED", async (data) => {
+    const emailHTMLTemplate = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h1 style="color: #dc3545;">Appointment Blocked 🚫</h1>
+      <p>Dear ${data.requesterName || "User"},</p>
+      <p>Your appointment request has been <strong style="color: #dc3545;">blocked</strong> by the orphanage.</p>
+      <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <p><strong>Orphanage:</strong> ${data.orphanageName || 'N/A'}</p>
+        ${data.adminResponse ? `<p><strong>Reason:</strong> ${data.adminResponse}</p>` : ''}
+      </div>
+      <p>Best regards,<br><strong>The SoulConnect Team</strong></p>
+    </div>`;
+
+    await sendEmail(
+      data.requesterEmail,
+      "Appointment Blocked - SoulConnect 🚫",
+      `Your appointment at ${data.orphanageName || 'the orphanage'} has been blocked.`,
+      emailHTMLTemplate
+    );
+
+    if (data.requesterId) {
+      await createInAppNotification({
+        recipient: data.requesterId,
+        recipientRole: data.requesterRole || 'user',
+        type: 'appointment_rejected',
+        title: 'Appointment Blocked',
+        message: `Your appointment at ${data.orphanageName || 'the orphanage'} has been blocked.${data.adminResponse ? ' Reason: ' + data.adminResponse : ''}`,
+        data: { appointmentId: data.appointmentId, orphanageName: data.orphanageName },
+      })
+    }
+  });
+
+  // Appointment Cancelled by Admin Email
+  subscribeToQueue("APPOINTMENT_NOTIFICATION.CANCELLED_BY_ADMIN", async (data) => {
+    const emailHTMLTemplate = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h1 style="color: #dc3545;">Appointment Cancelled ❌</h1>
+      <p>Dear ${data.requesterName || "User"},</p>
+      <p>Your appointment has been <strong>cancelled</strong> by the orphanage.</p>
+      <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <p><strong>Orphanage:</strong> ${data.orphanageName || 'N/A'}</p>
+        ${data.adminResponse ? `<p><strong>Reason:</strong> ${data.adminResponse}</p>` : ''}
+      </div>
+      <p>Best regards,<br><strong>The SoulConnect Team</strong></p>
+    </div>`;
+
+    await sendEmail(
+      data.requesterEmail,
+      "Appointment Cancelled - SoulConnect ❌",
+      `Your appointment at ${data.orphanageName || 'the orphanage'} has been cancelled by the admin.`,
+      emailHTMLTemplate
+    );
+
+    if (data.requesterId) {
+      await createInAppNotification({
+        recipient: data.requesterId,
+        recipientRole: data.requesterRole || 'user',
+        type: 'appointment_cancelled',
+        title: 'Appointment Cancelled by Orphanage',
+        message: `Your appointment at ${data.orphanageName || 'the orphanage'} was cancelled.${data.adminResponse ? ' Reason: ' + data.adminResponse : ''}`,
+        data: { appointmentId: data.appointmentId, orphanageName: data.orphanageName },
+      })
+    }
+  });
+
+  // Appointment Reminder Email
+  subscribeToQueue("APPOINTMENT_NOTIFICATION.REMINDER", async (data) => {
+    const appointmentDate = data.requestedAt ? new Date(data.requestedAt).toLocaleString() : 'upcoming';
+    const emailHTMLTemplate = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h1 style="color: #4A90A4;">Appointment Reminder 🔔</h1>
+      <p>Dear ${data.requesterName || "User"},</p>
+      <p>This is a friendly reminder about your upcoming appointment.</p>
+      <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <p><strong>Orphanage:</strong> ${data.orphanageName || 'N/A'}</p>
+        <p><strong>Date & Time:</strong> ${appointmentDate}</p>
+        <p><strong>Purpose:</strong> ${data.purpose || 'N/A'}</p>
+      </div>
+      <p>Please arrive on time and bring a valid ID.</p>
+      <p>Best regards,<br><strong>The SoulConnect Team</strong></p>
+    </div>`;
+
+    await sendEmail(
+      data.requesterEmail,
+      "Appointment Reminder - SoulConnect 🔔",
+      `Reminder: Your appointment at ${data.orphanageName || 'the orphanage'} is on ${appointmentDate}.`,
+      emailHTMLTemplate
+    );
+
+    if (data.requesterId) {
+      await createInAppNotification({
+        recipient: data.requesterId,
+        recipientRole: data.requesterRole || 'user',
+        type: 'event_reminder',
+        title: 'Appointment Reminder',
+        message: `Reminder: Your appointment at ${data.orphanageName || 'the orphanage'} is on ${appointmentDate}.`,
+        data: { appointmentId: data.appointmentId, orphanageName: data.orphanageName },
+      })
+    }
+  });
+
   // ================== PAYMENT NOTIFICATIONS ==================
 
   subscribeToQueue("PAYMENT_NOTIFICATION.PAYMENT_INITIATED", async (data) => {
@@ -512,12 +650,15 @@ module.exports = async () => {
 
   subscribeToQueue("EVENT_NOTIFICATION.REMINDER", async (data) => {
     if (data.participantId) {
+      const msg = data.customMessage
+        ? data.customMessage
+        : `Reminder: "${data.eventTitle || 'An event'}" is starting soon on ${data.eventDate || 'the scheduled date'}.`;
       await createInAppNotification({
         recipient: data.participantId,
         recipientRole: data.participantRole || 'user',
         type: 'event_reminder',
         title: 'Event Reminder',
-        message: `Reminder: "${data.eventTitle || 'An event'}" is starting soon on ${data.eventDate || 'the scheduled date'}.`,
+        message: msg,
         data: { eventId: data.eventId },
       })
     }

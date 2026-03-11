@@ -12,11 +12,13 @@ import {
   FaCalendarAlt,
   FaRedo,
   FaExternalLinkAlt,
+  FaBell,
 } from 'react-icons/fa'
 import { MdEvent } from 'react-icons/md'
 import { toast } from 'react-toastify'
 import { eventAPI, authAPI } from '../../../services/api'
 import { useAuth } from '../../../context/AuthContext'
+import { ScrollReveal } from '../../../hooks/useScrollReveal'
 
 const categoryColors = {
   Education: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200',
@@ -348,6 +350,77 @@ const ParticipantsModal = ({ event, onClose }) => {
   )
 }
 
+const SendReminderModal = ({ event, onClose }) => {
+  const [message, setMessage] = useState('')
+  const [sending, setSending] = useState(false)
+
+  const handleSend = async (e) => {
+    e.preventDefault()
+    setSending(true)
+    try {
+      await eventAPI.sendReminder(event._id, { message: message.trim() || undefined })
+      toast.success(`Reminder sent to ${event.participants?.length || 0} participants`)
+      onClose()
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to send reminder')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onClose}>
+      <div
+        className="w-full max-w-lg rounded-3xl bg-white p-8 shadow-2xl dark:bg-dark-900"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-teal-500">Send Reminder</p>
+            <h2 className="text-xl font-bold text-teal-900 dark:text-cream-50">{event.title}</h2>
+            <p className="text-sm text-teal-500 mt-1">{event.participants?.length || 0} participant(s) will be notified</p>
+          </div>
+          <button onClick={onClose} className="text-teal-700 hover:text-coral-500 dark:text-cream-100">
+            <FaTimes className="text-xl" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSend} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-teal-700 dark:text-cream-200 mb-1">Custom Message (optional)</label>
+            <textarea
+              value={message}
+              onChange={e => setMessage(e.target.value)}
+              rows={3}
+              maxLength={500}
+              className="w-full rounded-xl border border-cream-200 bg-cream-50 px-4 py-3 text-teal-900 focus:border-coral-400 focus:outline-none dark:border-dark-600 dark:bg-dark-800 dark:text-cream-50"
+              placeholder={`Reminder: "${event.title}" is coming up on ${formatDate(event.eventDate)}...`}
+            />
+            <p className="text-xs text-teal-400 mt-1">Leave empty to send a default reminder about the event date.</p>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full border border-cream-200 px-6 py-2 text-sm font-medium text-teal-700 hover:bg-cream-50 dark:border-dark-600 dark:text-cream-200 dark:hover:bg-dark-700"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={sending || !event.participants?.length}
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-coral-500 to-teal-500 px-6 py-2 text-sm font-medium text-white disabled:opacity-70 transition"
+            >
+              <FaBell className="text-xs" /> {sending ? 'Sending...' : 'Send Reminder'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 const EventsManagement = () => {
   const { user } = useAuth()
   const [events, setEvents] = useState([])
@@ -355,6 +428,7 @@ const EventsManagement = () => {
   const [showCreate, setShowCreate] = useState(false)
   const [editEvent, setEditEvent] = useState(null)
   const [participantsEvent, setParticipantsEvent] = useState(null)
+  const [reminderEvent, setReminderEvent] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
 
   const fetchEvents = async () => {
@@ -396,6 +470,7 @@ const EventsManagement = () => {
 
   return (
     <div className="space-y-8">
+      <ScrollReveal animation="fade-up">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.4em] text-teal-500 dark:text-cream-300">Events</p>
@@ -417,8 +492,10 @@ const EventsManagement = () => {
           </button>
         </div>
       </header>
+      </ScrollReveal>
 
       {/* Stats */}
+      <ScrollReveal animation="fade-up" delay={100}>
       <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-2xl border border-cream-200 bg-white p-5 dark:border-dark-700 dark:bg-dark-800">
           <p className="text-sm text-teal-500">Total Events</p>
@@ -437,8 +514,10 @@ const EventsManagement = () => {
           <p className="text-3xl font-bold text-teal-900 dark:text-cream-50">{stats.totalParticipants}</p>
         </div>
       </div>
+      </ScrollReveal>
 
       {/* Events List */}
+      <ScrollReveal animation="fade-up" delay={200}>
       {loading ? (
         <div className="flex justify-center py-16">
           <div className="h-16 w-16 animate-spin rounded-full border-b-4 border-t-4 border-coral-500" />
@@ -509,6 +588,14 @@ const EventsManagement = () => {
                   >
                     <FaEdit className="inline mr-1" /> Edit
                   </button>
+                  {event.participants?.length > 0 && (event.status === 'upcoming' || event.status === 'ongoing') && (
+                    <button
+                      onClick={() => setReminderEvent(event)}
+                      className="rounded-full border border-amber-200 px-3 py-1.5 text-xs font-medium text-amber-600 hover:bg-amber-50 dark:border-amber-400/30 dark:text-amber-300 transition"
+                    >
+                      <FaBell className="inline mr-1" /> Remind
+                    </button>
+                  )}
                   <button
                     onClick={() => handleDelete(event._id)}
                     disabled={deletingId === event._id}
@@ -522,6 +609,7 @@ const EventsManagement = () => {
           ))}
         </div>
       )}
+      </ScrollReveal>
 
       {/* Modals */}
       {(showCreate || editEvent) && (
@@ -535,6 +623,12 @@ const EventsManagement = () => {
         <ParticipantsModal
           event={participantsEvent}
           onClose={() => setParticipantsEvent(null)}
+        />
+      )}
+      {reminderEvent && (
+        <SendReminderModal
+          event={reminderEvent}
+          onClose={() => setReminderEvent(null)}
         />
       )}
     </div>

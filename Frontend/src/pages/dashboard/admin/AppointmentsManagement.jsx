@@ -2,6 +2,7 @@ import { useMemo, useState, useCallback } from 'react'
 import { FaCalendarCheck, FaCheckCircle, FaClock, FaTimesCircle, FaBan, FaTimes, FaList, FaCalendarAlt, FaChevronLeft, FaChevronRight, FaBell, FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaChild, FaInfoCircle } from 'react-icons/fa'
 import { useAdminDashboardContext } from './AdminLayout'
 import { appointmentAPI, authAPI, childrenAPI } from '../../../services/api'
+import { ScrollReveal } from '../../../hooks/useScrollReveal'
 
 const statusStyles = {
   pending: 'bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-500/20 dark:text-amber-100 dark:border-amber-400/30',
@@ -10,9 +11,10 @@ const statusStyles = {
   rejected: 'bg-rose-100 text-rose-700 border border-rose-200 dark:bg-rose-500/20 dark:text-rose-100 dark:border-rose-400/30',
   cancelled: 'bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-600/30 dark:text-slate-100 dark:border-slate-500/40',
   blocked: 'bg-red-100 text-red-800 border border-red-300 dark:bg-red-500/20 dark:text-red-100 dark:border-red-400/30',
+  completed: 'bg-teal-100 text-teal-700 border border-teal-200 dark:bg-teal-500/20 dark:text-teal-100 dark:border-teal-400/30',
 }
 
-const statusFilters = ['all', 'pending', 'needsconfirmation', 'approved', 'rejected', 'blocked', 'cancelled']
+const statusFilters = ['all', 'pending', 'needsconfirmation', 'approved', 'rejected', 'blocked', 'cancelled', 'completed']
 
 const normalizeStatus = (status) => (status || 'pending').toLowerCase()
 
@@ -162,14 +164,14 @@ const AppointmentsManagement = () => {
     const sorted = [...appointmentSource].sort((a, b) => {
       const aTime = a?.requestedAt ? new Date(a.requestedAt).getTime() : 0
       const bTime = b?.requestedAt ? new Date(b.requestedAt).getTime() : 0
-      return aTime - bTime
+      return bTime - aTime
     })
     if (statusFilter === 'all') return sorted
     return sorted.filter((appt) => normalizeStatus(appt.status) === statusFilter)
   }, [appointmentSource, statusFilter])
 
   const statusMetrics = useMemo(() => {
-    const base = { pending: 0, approved: 0, rejected: 0, blocked: 0 }
+    const base = { pending: 0, approved: 0, rejected: 0, blocked: 0, completed: 0 }
     appointmentSource.forEach((appt) => {
       const state = normalizeStatus(appt.status)
       if (state === 'needsconfirmation') {
@@ -442,6 +444,7 @@ const AppointmentsManagement = () => {
         </div>
       )}
 
+      <ScrollReveal animation="fade-up">
       <header className="space-y-2">
         <p className="text-xs uppercase tracking-[0.4em] text-teal-500 dark:text-cream-300">Appointments</p>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -472,6 +475,7 @@ const AppointmentsManagement = () => {
           </div>
         </div>
       </header>
+      </ScrollReveal>
 
       <div className="rounded-3xl border border-cream-200 bg-white/90 p-6 shadow-lg dark:border-dark-700 dark:bg-dark-900/70">
         {/* Status filter tabs (both views) */}
@@ -722,7 +726,8 @@ const AppointmentsManagement = () => {
         )}
       </div>
 
-      <section className="grid gap-6 md:grid-cols-4">
+      <ScrollReveal animation="fade-up" delay={300}>
+      <section className="grid gap-6 md:grid-cols-5">
         <div className="rounded-3xl border border-cream-200 bg-white/90 p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900/70">
           <FaClock className="text-2xl text-amber-500" />
           <p className="mt-3 text-xs uppercase tracking-[0.3em] text-teal-500 dark:text-cream-300">Awaiting response</p>
@@ -730,7 +735,7 @@ const AppointmentsManagement = () => {
         </div>
         <div className="rounded-3xl border border-cream-200 bg-white/90 p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900/70">
           <FaCheckCircle className="text-2xl text-emerald-500" />
-          <p className="mt-3 text-xs uppercase tracking-[0.3em] text-teal-500 dark:text-cream-300">Approved this week</p>
+          <p className="mt-3 text-xs uppercase tracking-[0.3em] text-teal-500 dark:text-cream-300">Approved</p>
           <p className="mt-1 text-3xl font-semibold text-teal-900 dark:text-cream-50">{statusMetrics.approved}</p>
         </div>
         <div className="rounded-3xl border border-cream-200 bg-white/90 p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900/70">
@@ -742,6 +747,11 @@ const AppointmentsManagement = () => {
           <FaBan className="text-2xl text-red-700" />
           <p className="mt-3 text-xs uppercase tracking-[0.3em] text-teal-500 dark:text-cream-300">Blocked</p>
           <p className="mt-1 text-3xl font-semibold text-teal-900 dark:text-cream-50">{statusMetrics.blocked}</p>
+        </div>
+        <div className="rounded-3xl border border-cream-200 bg-white/90 p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900/70">
+          <FaCheckCircle className="text-2xl text-teal-500" />
+          <p className="mt-3 text-xs uppercase tracking-[0.3em] text-teal-500 dark:text-cream-300">Completed</p>
+          <p className="mt-1 text-3xl font-semibold text-teal-900 dark:text-cream-50">{statusMetrics.completed}</p>
         </div>
       </section>
 
@@ -759,6 +769,7 @@ const AppointmentsManagement = () => {
           <li>Attendance automatically updates the visit log post completion.</li>
         </ul>
       </section>
+      </ScrollReveal>
 
       {/* Approve / Reschedule modal */}
       {acceptModalOpen && acceptAppointment && (

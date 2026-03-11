@@ -100,4 +100,15 @@ router.get('/:id/participants',
     controller.getEventParticipants
 );
 
+/**
+ * Send Reminder to Event Participants
+ * POST /event/:id/send-reminder
+ * Access: Orphanage Admin
+ */
+router.post('/:id/send-reminder',
+    authMiddleware,
+    permit('orphanAdmin'),
+    controller.sendEventReminder
+);
+
 module.exports = router;

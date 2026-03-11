@@ -1,5 +1,6 @@
 import { useMemo, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
+import { ScrollReveal } from '../../../hooks/useScrollReveal'
 import { FaSearch, FaPlus, FaFilter, FaTrashAlt, FaEdit, FaTimes, FaEye } from 'react-icons/fa'
 import { toast } from 'react-toastify'
 import { useAdminDashboardContext } from './AdminLayout'
@@ -190,6 +191,7 @@ const ChildrenManagement = () => {
 
   return (
     <div className="space-y-8">
+      <ScrollReveal animation="fade-up">
       <header className="space-y-2">
         <p className="text-xs uppercase tracking-[0.4em] text-teal-500 dark:text-cream-300">Children</p>
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -207,7 +209,9 @@ const ChildrenManagement = () => {
           </div>
         </div>
       </header>
+      </ScrollReveal>
 
+      <ScrollReveal animation="fade-up" delay={200}>
       <div className="rounded-3xl border border-cream-200 bg-white/90 p-6 shadow-lg dark:border-dark-700 dark:bg-dark-900/70">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-1 items-center gap-3 rounded-full border border-cream-200 bg-white px-4 py-2 dark:border-dark-700 dark:bg-dark-800">
@@ -335,6 +339,7 @@ const ChildrenManagement = () => {
           )}
         </div>
       </div>
+      </ScrollReveal>
 
       {modalOpen && (
         <div className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-black/40 px-4 py-10">

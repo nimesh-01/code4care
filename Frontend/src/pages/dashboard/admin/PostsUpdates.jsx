@@ -8,6 +8,7 @@ import { useAuth } from '../../../context/AuthContext'
 import { postAPI } from '../../../services/api'
 import EngagementModal from '../../posts/EngagementModal'
 import MediaCarousel from '../../posts/MediaCarousel'
+import { ScrollReveal } from '../../../hooks/useScrollReveal'
 
 const PostsUpdates = () => {
   const { user } = useAuth()
@@ -156,6 +157,7 @@ const PostsUpdates = () => {
   return (
     <div className="space-y-8">
       {/* Header */}
+      <ScrollReveal animation="fade-up">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.4em] text-teal-500 dark:text-cream-300">Updates</p>
@@ -169,6 +171,7 @@ const PostsUpdates = () => {
           {showCreate ? <><FaTimes /> Cancel</> : <><FaPlus /> New Post</>}
         </button>
       </header>
+      </ScrollReveal>
 
       {/* Create Post Form */}
       {showCreate && (
@@ -382,6 +385,7 @@ const PostsUpdates = () => {
       )}
 
       {/* Tips section */}
+      <ScrollReveal animation="fade-up" delay={200}>
       <section className="rounded-2xl border border-cream-200 dark:border-dark-700 bg-white dark:bg-dark-800 p-6">
         <h3 className="text-xl font-semibold text-teal-900 dark:text-cream-50">Content tips</h3>
         <ul className="mt-4 list-disc space-y-2 pl-6 text-sm text-teal-600 dark:text-cream-300">
@@ -390,6 +394,7 @@ const PostsUpdates = () => {
           <li>Post regularly to keep donors and volunteers engaged.</li>
         </ul>
       </section>
+      </ScrollReveal>
     </div>
   )
 }

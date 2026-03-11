@@ -2,6 +2,7 @@ const { validationResult } = require('express-validator');
 const Event = require('../models/event.model');
 const axios = require('axios');
 const { uploadBuffer, deleteFile } = require('../services/imagekit.service');
+const { publishToQueue } = require('../broker/broker');
 
 // Resolve orphanage ID from auth service
 const resolveOrphanageId = async (req) => {
@@ -62,6 +63,14 @@ const createEvent = async (req, res) => {
             await event.save();
         }
 
+        // Notify: event created
+        publishToQueue('EVENT_NOTIFICATION.CREATED', {
+            organizerId: req.user.id || req.user._id,
+            organizerRole: req.user.role || 'orphanAdmin',
+            title: event.title,
+            eventId: event._id.toString(),
+        }).catch(err => console.error('Failed to publish event created notification:', err.message));
+
         res.status(201).json({ message: 'Event created successfully', event });
     } catch (err) {
         console.error('createEvent error:', err);
@@ -89,11 +98,23 @@ const getAllEvents = async (req, res) => {
             if (resolvedId) filter.orphanageId = resolvedId;
         }
 
-        const events = await Event.find(filter)
-            .sort({ [sort]: order === 'asc' ? 1 : -1 })
-            .limit(200);
+        const perPage = Math.min(parseInt(req.query.limit, 10) || 6, 500);
+        const currentPage = Math.max(parseInt(req.query.page, 10) || 1, 1);
+        const skip = (currentPage - 1) * perPage;
 
-        res.json({ events });
+        const [events, totalCount] = await Promise.all([
+            Event.find(filter)
+                .sort({ [sort]: order === 'asc' ? 1 : -1 })
+                .skip(skip)
+                .limit(perPage),
+            Event.countDocuments(filter)
+        ]);
+        const totalPages = Math.ceil(totalCount / perPage);
+
+        res.json({
+            events,
+            pagination: { currentPage, totalPages, totalCount, hasMore: currentPage < totalPages }
+        });
     } catch (err) {
         console.error('getAllEvents error:', err);
         res.status(500).json({ error: 'Failed to fetch events' });
@@ -151,6 +172,17 @@ const joinEvent = async (req, res) => {
         });
 
         await event.save();
+
+        // Notify: volunteer/user joined event
+        publishToQueue('EVENT_NOTIFICATION.VOLUNTEER_JOINED', {
+            organizerId: event.createdBy ? event.createdBy.toString() : null,
+            volunteerId: userId,
+            volunteerName: req.user.username || 'A participant',
+            volunteerRole: req.user.role || 'user',
+            eventTitle: event.title,
+            eventId: event._id.toString(),
+        }).catch(err => console.error('Failed to publish event joined notification:', err.message));
+
         res.json({ message: 'Successfully joined the event', event });
     } catch (err) {
         console.error('joinEvent error:', err);
@@ -236,6 +268,20 @@ const updateEvent = async (req, res) => {
         }
 
         await event.save();
+
+        // Notify participants about event update
+        if (event.participants?.length > 0) {
+            for (const p of event.participants) {
+                publishToQueue('EVENT_NOTIFICATION.REMINDER', {
+                    participantId: p.participantId.toString(),
+                    participantRole: p.role || 'user',
+                    eventTitle: event.title,
+                    eventDate: event.eventDate ? new Date(event.eventDate).toLocaleDateString() : '',
+                    eventId: event._id.toString(),
+                }).catch(err => console.error('Failed to publish event update notification:', err.message));
+            }
+        }
+
         res.json({ message: 'Event updated successfully', event });
     } catch (err) {
         console.error('updateEvent error:', err);
@@ -262,6 +308,19 @@ const deleteEvent = async (req, res) => {
         if (event.imageFileId) {
             try { await deleteFile(event.imageFileId); } catch (e) {
                 console.warn('Failed to delete event image:', e.message);
+            }
+        }
+
+        // Notify participants about event cancellation
+        if (event.participants?.length > 0) {
+            for (const p of event.participants) {
+                publishToQueue('EVENT_NOTIFICATION.REMINDER', {
+                    participantId: p.participantId.toString(),
+                    participantRole: p.role || 'user',
+                    eventTitle: event.title,
+                    eventDate: event.eventDate ? new Date(event.eventDate).toLocaleDateString() : '',
+                    eventId: event._id.toString(),
+                }).catch(err => console.error('Failed to publish event cancellation notification:', err.message));
             }
         }
 
@@ -304,4 +363,45 @@ module.exports = {
     updateEvent,
     deleteEvent,
     getEventParticipants,
+    sendEventReminder,
 };
+
+/**
+ * Send Reminder to Event Participants
+ * POST /event/:id/send-reminder
+ * Access: Orphanage Admin (owner only)
+ */
+async function sendEventReminder(req, res) {
+    try {
+        const event = await Event.findById(req.params.id);
+        if (!event) return res.status(404).json({ error: 'Event not found' });
+
+        const orphanageId = await resolveOrphanageId(req);
+        if (!orphanageId || String(event.orphanageId) !== String(orphanageId)) {
+            return res.status(403).json({ error: 'Forbidden - orphanage mismatch' });
+        }
+
+        if (!event.participants || event.participants.length === 0) {
+            return res.status(400).json({ error: 'No participants to notify' });
+        }
+
+        const { message } = req.body;
+        const eventDate = event.eventDate ? new Date(event.eventDate).toLocaleDateString() : '';
+
+        for (const p of event.participants) {
+            publishToQueue('EVENT_NOTIFICATION.REMINDER', {
+                participantId: p.participantId.toString(),
+                participantRole: p.role || 'user',
+                eventTitle: event.title,
+                eventDate,
+                eventId: event._id.toString(),
+                customMessage: message || '',
+            }).catch(err => console.error('Failed to publish event reminder:', err.message));
+        }
+
+        res.json({ message: `Reminder sent to ${event.participants.length} participants` });
+    } catch (err) {
+        console.error('sendEventReminder error:', err);
+        res.status(500).json({ error: 'Failed to send reminders' });
+    }
+}

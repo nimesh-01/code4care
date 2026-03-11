@@ -34,6 +34,8 @@ import Notifications from './pages/Notifications'
 import ParticipantProfile from './pages/dashboard/admin/ParticipantProfile'
 import CreatePost from './pages/posts/CreatePost'
 import OrphanagePosts from './pages/posts/OrphanagePosts'
+import Contact from './pages/Contact'
+import Privacy from './pages/Privacy'
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -83,6 +85,8 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/orphanage/:orphanageId/posts" element={<OrphanagePosts />} />
         <Route path="/events" element={<Events />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/privacy" element={<Privacy />} />
         <Route
           path="/posts/create"
           element={

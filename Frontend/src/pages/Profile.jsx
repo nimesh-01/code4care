@@ -10,6 +10,7 @@ import { authAPI } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import Navbar from '../components/Navbar'
+import { ScrollReveal } from '../hooks/useScrollReveal'
 
 const Profile = () => {
   const { user, checkAuth } = useAuth()
@@ -199,6 +200,7 @@ const Profile = () => {
           </Link>
 
           {/* Profile Header Card */}
+          <ScrollReveal animation="fade-up">
           <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-xl overflow-hidden mb-8">
             {/* Cover */}
             <div className="h-32 bg-gradient-to-r from-coral-400 via-coral-500 to-teal-500"></div>
@@ -285,6 +287,7 @@ const Profile = () => {
               </div>
             </div>
           </div>
+          </ScrollReveal>
 
           {/* Profile Details */}
           <div className="grid md:grid-cols-2 gap-8">

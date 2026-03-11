@@ -16,6 +16,7 @@
   ],
   "author": "",
   "dependencies": {
+    "amqplib": "^0.10.9",
     "axios": "^1.4.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",

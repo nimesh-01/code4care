@@ -4,6 +4,7 @@ import { FaHeart, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaSun, FaMoon, FaClock,
 import { toast } from 'react-toastify'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
+import { ScrollReveal } from '../../hooks/useScrollReveal'
 
 const resolveDisplayName = (user) => {
   if (!user) return 'User'
@@ -141,6 +142,7 @@ const Login = () => {
 
       <div className="w-full max-w-md">
         {/* Logo */}
+        <ScrollReveal animation="fade-down">
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 text-3xl font-playfair font-bold text-white">
             <FaHeart className="text-white" />
@@ -148,8 +150,10 @@ const Login = () => {
           </Link>
           <p className="text-white/80 mt-2">Welcome back! Please login to continue.</p>
         </div>
+        </ScrollReveal>
 
         {/* Login Card */}
+        <ScrollReveal animation="fade-up" delay={200}>
         <div className="bg-white dark:bg-dark-800 rounded-2xl p-8 shadow-2xl transition-colors duration-300">
           <h2 className="text-2xl font-playfair font-bold text-teal-900 dark:text-cream-50 mb-6 text-center">Login</h2>
 
@@ -277,6 +281,7 @@ const Login = () => {
             </Link>
           </p>
         </div>
+        </ScrollReveal>
       </div>
     </div>
   )

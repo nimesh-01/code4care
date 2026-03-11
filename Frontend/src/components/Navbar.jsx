@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { FaHeart, FaBars, FaTimes, FaSun, FaMoon, FaUserCircle, FaComments, FaBell } from 'react-icons/fa'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
@@ -7,12 +7,35 @@ import { useNotifications } from '../context/NotificationContext'
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false)
+  const progressRef = useRef(null)
+  const rafRef = useRef(null)
   const { user, logout } = useAuth()
   const { isDarkMode, toggleTheme } = useTheme()
   const { unreadCount } = useNotifications()
   const navigate = useNavigate()
+  const location = useLocation()
   const normalizedRole = (user?.role || '').toLowerCase()
   const canViewAppointments = ['user', 'volunteer'].includes(normalizedRole)
+
+  const updateProgress = useCallback(() => {
+    if (!progressRef.current) return
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight
+    const progress = docHeight > 0 ? Math.min(window.scrollY / docHeight, 1) : 0
+    progressRef.current.style.transform = `scaleX(${progress})`
+  }, [])
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      rafRef.current = requestAnimationFrame(updateProgress)
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    updateProgress()
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    }
+  }, [location.pathname, updateProgress])
 
   const handleLogout = () => {
     logout()
@@ -20,7 +43,7 @@ const Navbar = () => {
   }
 
   return (
-    <nav className="fixed w-full z-50 bg-cream-50/95 dark:bg-dark-900/95 backdrop-blur-md shadow-sm border-b border-cream-200 dark:border-dark-700 transition-colors duration-300">
+    <nav className="fixed w-full z-50 bg-cream-50/95 dark:bg-dark-900/95 backdrop-blur-md shadow-sm transition-colors duration-300">
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
@@ -32,7 +55,6 @@ const Navbar = () => {
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center gap-8">
             <NavLink to="/">Home</NavLink>
-            <NavLink to="/about">About</NavLink>
             {user?.role !== 'orphanAdmin' && (
               <>
                 <NavLink to="/children">Children</NavLink>
@@ -126,7 +148,6 @@ const Navbar = () => {
           <div className="md:hidden mt-4 pb-4 border-t border-cream-200 dark:border-dark-700 pt-4">
             <div className="flex flex-col gap-4">
               <MobileNavLink to="/" onClick={() => setIsOpen(false)}>Home</MobileNavLink>
-              <MobileNavLink to="/about" onClick={() => setIsOpen(false)}>About</MobileNavLink>
               {user?.role !== 'orphanAdmin' && (
                 <>
                   <MobileNavLink to="/children" onClick={() => setIsOpen(false)}>Children</MobileNavLink>
@@ -175,6 +196,14 @@ const Navbar = () => {
             </div>
           </div>
         )}
+      </div>
+      {/* Scroll progress bar */}
+      <div className="absolute bottom-0 left-0 w-full h-[2px] bg-cream-200 dark:bg-dark-700">
+        <div
+          ref={progressRef}
+          className="h-full w-full origin-left will-change-transform bg-gradient-to-r from-coral-500 via-teal-400 to-coral-500"
+          style={{ transform: 'scaleX(0)' }}
+        />
       </div>
     </nav>
   )

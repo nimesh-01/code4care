@@ -60,6 +60,7 @@ export const authAPI = {
   getCurrentUser: () => api.get('/auth/me'),
   forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
   resetPassword: (token, newPassword) => api.post('/auth/reset-password', { token, newPassword }),
+  getPlatformStats: () => api.get('/auth/platform-stats'),
   updateProfile: (data) => {
     // If data is FormData (for file uploads), use multipart/form-data
     if (data instanceof FormData) {
@@ -135,6 +136,7 @@ childrenApi.interceptors.response.use(
 )
 
 export const childrenAPI = {
+  getPublicCount: () => childrenApi.get('/children/public/count'),
   getAll: (params) => childrenApi.get('/children', { params }),
   getById: (id) => childrenApi.get(`/children/${id}`),
   getByOrphanage: (orphanageId) => childrenApi.get(`/orphanage/${orphanageId}`, { skipRedirect: true }),
@@ -224,6 +226,7 @@ donationApi.interceptors.request.use(
 donationApi.interceptors.response.use((response) => response, handle401Error)
 
 export const donationAPI = {
+  getPublicStats: () => donationApi.get('/public/stats'),
   init: (data) => donationApi.post('/init', data),
   verify: (data) => donationApi.post('/verify', data),
   getById: (id) => donationApi.get(`/${id}`),
@@ -330,6 +333,7 @@ export const eventAPI = {
   }),
   delete: (id) => eventApi.delete(`/${id}/delete`),
   getParticipants: (id) => eventApi.get(`/${id}/participants`),
+  sendReminder: (id, data = {}) => eventApi.post(`/${id}/send-reminder`, data),
 }
 
 export const postAPI = {
@@ -370,6 +374,7 @@ export const notificationAPI = {
   delete: (id) => notificationApi.delete(`/${id}`),
   clearRead: () => notificationApi.delete('/clear'),
   send: (data) => notificationApi.post('/send', data),
+  sendBulk: (data) => notificationApi.post('/send-bulk', data),
 }
 
 export default api

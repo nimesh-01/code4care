@@ -2,6 +2,7 @@ import { useMemo, useState, useCallback } from 'react'
 import { FaExclamationTriangle, FaLifeRing, FaPlusCircle, FaTimes, FaCheckCircle, FaUserShield } from 'react-icons/fa'
 import { useAdminDashboardContext } from './AdminLayout'
 import { authAPI, helpRequestAPI } from '../../../services/api'
+import { ScrollReveal } from '../../../hooks/useScrollReveal'
 
 const REQUEST_TYPES = ['Teaching', 'Medical', 'Exam', 'Other']
 
@@ -164,6 +165,7 @@ const HelpRequestsManagement = () => {
         </div>
       )}
 
+      <ScrollReveal animation="fade-up">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.4em] text-teal-500 dark:text-cream-300">Help requests</p>
@@ -177,8 +179,10 @@ const HelpRequestsManagement = () => {
           <FaPlusCircle /> New request
         </button>
       </header>
+      </ScrollReveal>
 
       {/* Metrics */}
+      <ScrollReveal animation="fade-up" delay={100}>
       <section className="grid gap-4 md:grid-cols-3">
         <div className="rounded-3xl border border-cream-200 bg-white/90 p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900/70">
           <FaExclamationTriangle className="text-2xl text-amber-500" />
@@ -196,7 +200,9 @@ const HelpRequestsManagement = () => {
           <p className="mt-1 text-3xl font-semibold text-teal-900 dark:text-cream-50">{metrics.completed}</p>
         </div>
       </section>
+      </ScrollReveal>
 
+      <ScrollReveal animation="fade-up" delay={200}>
       <div className="rounded-3xl border border-cream-200 bg-white/90 p-6 shadow-lg dark:border-dark-700 dark:bg-dark-900/70">
         <div className="flex flex-wrap items-center gap-3">
           {['all', 'pending', 'accepted', 'completed'].map((value) => (
@@ -270,7 +276,9 @@ const HelpRequestsManagement = () => {
           )}
         </div>
       </div>
+      </ScrollReveal>
 
+      <ScrollReveal animation="fade-up" delay={300}>
       <section className="grid gap-6 md:grid-cols-2">
         <div className="rounded-3xl border border-cream-200 bg-white/90 p-6 shadow-sm dark:border-dark-700 dark:bg-dark-900/70">
           <div className="flex items-center gap-3">
@@ -299,6 +307,7 @@ const HelpRequestsManagement = () => {
           </p>
         </div>
       </section>
+      </ScrollReveal>
 
       {/* ========== New Request Modal ========== */}
       {modalOpen && (

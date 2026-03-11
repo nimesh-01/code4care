@@ -42,9 +42,11 @@ async function registerUser(req, res) {
         await Promise.all([
             publishToQueue('AUTH_NOTIFICATION.USER_CREATED', {
                 id: user._id,
+                userId: user._id,
                 username: user.username,
                 email: user.email,
                 fullname: user.fullname.firstname,
+                role: user.role || 'user',
             }),
             publishToQueue("AUTH_SELLER_DASHBOARD.USER_CREATED", user)
         ])
@@ -567,10 +569,12 @@ async function registerOrphan(req, res) {
         await Promise.all([
             publishToQueue('AUTH_NOTIFICATION.ORPHANAGE_ADMIN_CREATED', {
                 id: user._id,
+                userId: user._id,
                 email: user.email,
                 username: user.username,
                 fullname: `${firstname} ${lastname || ''}`.trim(),
-                orphanageName: orphanage.name
+                orphanageName: orphanage.name,
+                role: 'orphanAdmin',
             }),
             publishToQueue('ORPHANAGE.CREATED', orphanage)
         ])
@@ -646,11 +650,19 @@ async function listOrphanages(req, res) {
         if (state) query['address.state'] = { $regex: `^${state}$`, $options: 'i' }
         if (city) query['address.city'] = { $regex: `^${city}$`, $options: 'i' }
 
-        const perPage = Math.min(parseInt(limit, 10) || 100, 500)
-        const skip = (Math.max(parseInt(page, 10) || 1, 1) - 1) * perPage
+        const perPage = Math.min(parseInt(limit, 10) || 6, 500)
+        const currentPage = Math.max(parseInt(page, 10) || 1, 1)
+        const skip = (currentPage - 1) * perPage
 
-        const orphanages = await Orphanage.find(query).skip(skip).limit(perPage)
-        return res.status(200).json({ orphanages })
+        const [orphanages, totalCount] = await Promise.all([
+            Orphanage.find(query).skip(skip).limit(perPage),
+            Orphanage.countDocuments(query)
+        ])
+        const totalPages = Math.ceil(totalCount / perPage)
+        return res.status(200).json({
+            orphanages,
+            pagination: { currentPage, totalPages, totalCount, hasMore: currentPage < totalPages }
+        })
     } catch (err) {
         console.error('Error in listOrphanages:', err)
         return res.status(500).json({ message: 'Internal Server Error' })
@@ -900,4 +912,31 @@ async function uploadOrphanageDocumentPublic(req, res) {
     }
 }
 
-module.exports = { registerUser, registerOrphan, loginUser, getCurrentUser, updateUser, logoutUser, forgotPassword, resetPassword, updateOrphanage, uploadOrphanageDocument, uploadOrphanageDocumentPublic, deleteOrphanageDocument, getOrphanage, listOrphanages, getUserById, getUsersBatch, getOrphanageById, uploadAdminIdDocumentPublic }
+// Public platform stats (no auth required)
+async function getPlatformStats(req, res) {
+    try {
+        const activeStatuses = ['pending', 'approved']
+        const [totalOrphanages, totalVolunteers, totalUsers, citiesAgg] = await Promise.all([
+            Orphanage.countDocuments({ status: { $in: activeStatuses } }),
+            userModel.countDocuments({ role: 'volunteer', status: 'active' }),
+            userModel.countDocuments({ role: { $in: ['user', 'volunteer'] }, status: 'active' }),
+            Orphanage.aggregate([
+                { $match: { status: { $in: activeStatuses }, 'address.city': { $exists: true, $ne: '' } } },
+                { $group: { _id: { $toLower: '$address.city' } } },
+                { $count: 'count' }
+            ])
+        ])
+
+        return res.status(200).json({
+            totalOrphanages,
+            totalVolunteers,
+            totalUsers,
+            citiesCovered: citiesAgg[0]?.count || 0
+        })
+    } catch (err) {
+        console.error('Error in getPlatformStats:', err)
+        return res.status(500).json({ message: 'Internal Server Error' })
+    }
+}
+
+module.exports = { registerUser, registerOrphan, loginUser, getCurrentUser, updateUser, logoutUser, forgotPassword, resetPassword, updateOrphanage, uploadOrphanageDocument, uploadOrphanageDocumentPublic, deleteOrphanageDocument, getOrphanage, listOrphanages, getUserById, getUsersBatch, getOrphanageById, uploadAdminIdDocumentPublic, getPlatformStats }

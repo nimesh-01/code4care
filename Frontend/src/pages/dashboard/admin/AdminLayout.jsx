@@ -49,13 +49,13 @@ const AdminLayout = () => {
     <AdminDashboardContext.Provider value={dashboard}>
       <div className="min-h-screen bg-cream-50 text-teal-900 dark:bg-dark-900 dark:text-cream-50 transition-colors duration-300">
         <Navbar />
-        <div className="flex min-h-screen pt-24 lg:pt-28">
-          <aside className="hidden lg:flex w-72 flex-col border-r border-cream-200 dark:border-dark-700 bg-white/90 dark:bg-dark-800/80 backdrop-blur-xl">
+        <div className="flex min-h-screen pt-16">
+          <aside className="hidden lg:flex w-72 flex-col border-r border-cream-200 dark:border-dark-700 bg-white/90 dark:bg-dark-800/80 backdrop-blur-xl sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto scrollbar-hide">
             <div className="px-6 py-8 border-b border-cream-200 dark:border-dark-700">
               <p className="text-xs uppercase tracking-[0.3em] text-teal-500 dark:text-cream-300">Orphanage Admin</p>
               <h1 className="mt-2 text-2xl font-semibold text-teal-900 dark:text-cream-50 font-playfair">Command Center</h1>
             </div>
-            <nav className="flex-1 overflow-y-auto px-4 py-6">
+            <nav className="flex-1 overflow-y-auto scrollbar-hide px-4 py-6">
               <ul className="space-y-1">
                 {navigation.map((item) => {
                   const Icon = item.icon
@@ -85,7 +85,7 @@ const AdminLayout = () => {
           </aside>
 
           <div className="flex flex-1 flex-col">
-            <header className="sticky top-0 z-10 border-b border-cream-200 dark:border-dark-700 bg-white/80 dark:bg-dark-900/80 backdrop-blur-xl">
+            <header className="sticky top-16 z-10 border-b border-cream-200 dark:border-dark-700 bg-white/80 dark:bg-dark-900/80 backdrop-blur-xl">
             <div className="flex flex-col gap-4 px-6 py-4 md:flex-row md:items-center md:justify-between">
               <div>
                   <p className="text-xs uppercase tracking-[0.4em] text-teal-500 dark:text-cream-300">SoulConnect</p>

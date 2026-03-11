@@ -11,6 +11,9 @@ const upload = multer({ storage: multer.memoryStorage() });
 // POST /api/children
 router.post('/children', authMiddleware, upload.fields([{ name: 'image', maxCount: 1 }, { name: 'documents', maxCount: 10 }]), childCreateValidations, controller.createChild);
 
+// GET /api/children/public/count - public stats (no auth)
+router.get('/children/public/count', controller.getPublicChildrenCount);
+
 //  GET /api/children
 router.get('/children', optionalAuthMiddleware, controller.getChildren);
 

@@ -20,6 +20,14 @@ const { authMiddleware } = require('../middlewares/auth.middleware');
 const { permit } = require('../middlewares/roles.middleware');
 
 /**
+ * @route   GET /donation/public/stats
+ * @desc    Get public platform donation stats (total donated)
+ * @access  Public
+ */
+const { getPublicDonationStats } = require('../controllers/donation.controller');
+router.get('/public/stats', getPublicDonationStats);
+
+/**
  * @route   POST /donation/init
  * @desc    Initialize a donation and create payment order
  * @access  Protected (Any authenticated user)

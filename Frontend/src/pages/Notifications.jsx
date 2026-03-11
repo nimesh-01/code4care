@@ -74,7 +74,7 @@ const Notifications = () => {
       <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto">
           {/* Header */}
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
+            <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
             <div className="flex items-center gap-3">
               <div className="p-3 rounded-2xl bg-gradient-to-br from-coral-400 to-teal-400 text-white shadow-lg">
                 <FaBell className="text-2xl" />
@@ -143,10 +143,10 @@ const Notifications = () => {
                 </button>
               )}
             </div>
-          </div>
+            </div>
 
           {/* Notification List */}
-          <div className="space-y-3">
+            <div className="space-y-3">
             {notifications.map(notification => {
               const config = typeConfig[notification.type] || typeConfig.general
               return (
@@ -236,7 +236,7 @@ const Notifications = () => {
                 </button>
               </div>
             )}
-          </div>
+            </div>
         </div>
       </div>
     </div>

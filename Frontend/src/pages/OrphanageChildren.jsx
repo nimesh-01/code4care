@@ -7,6 +7,7 @@ import {
 import Navbar from '../components/Navbar'
 import { useTheme } from '../context/ThemeContext'
 import { childrenAPI, orphanagesAPI } from '../services/api'
+import { ScrollReveal } from '../hooks/useScrollReveal'
 
 const OrphanageChildren = () => {
   const { id } = useParams()
@@ -82,6 +83,7 @@ const OrphanageChildren = () => {
         <div className="absolute top-10 right-10 w-40 h-40 bg-white/5 rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 left-10 w-48 h-48 bg-white/5 rounded-full blur-3xl"></div>
 
+        <ScrollReveal animation="fade-up">
         <div className="container mx-auto px-6 relative z-10">
           {/* Back Button */}
           <button
@@ -129,10 +131,12 @@ const OrphanageChildren = () => {
             )}
           </div>
         </div>
+        </ScrollReveal>
       </section>
 
       {/* Search & Filter Section */}
       <section className="py-8 bg-white dark:bg-dark-800 shadow-sm transition-colors duration-300">
+        <ScrollReveal animation="fade-up" delay={200}>
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
             {/* Search Bar */}
@@ -204,6 +208,7 @@ const OrphanageChildren = () => {
             </div>
           </div>
         </div>
+        </ScrollReveal>
       </section>
 
       {/* Children Grid */}
@@ -252,7 +257,7 @@ const OrphanageChildren = () => {
 
       {/* CTA Section */}
       <section className="py-16 bg-gradient-to-r from-teal-700 to-teal-800 dark:from-dark-800 dark:to-dark-950">
-        <div className="container mx-auto px-6 text-center">
+        <ScrollReveal animation="zoom-in" className="container mx-auto px-6 text-center">
           <h2 className="text-3xl font-playfair font-bold text-white mb-4">
             Want to Make a Difference?
           </h2>
@@ -273,7 +278,7 @@ const OrphanageChildren = () => {
               Back to Orphanage
             </Link>
           </div>
-        </div>
+        </ScrollReveal>
       </section>
 
       {/* Footer */}

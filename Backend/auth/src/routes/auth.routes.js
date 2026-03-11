@@ -65,6 +65,9 @@ router.post('/orphan-admin/:userId/id-document', upload.single('document'), auth
 // delete document for orphanage - expects JSON body { field, fileId }
 router.delete('/orphanage/document', authMiddleware.authMiddleware, authController.deleteOrphanageDocument)
 
+// Public platform stats (no auth required)
+router.get('/platform-stats', authController.getPlatformStats)
+
 // Inter-service routes (for microservice communication)
 // Get user by ID
 router.get('/user/:userId', authMiddleware.authMiddleware, authController.getUserById)

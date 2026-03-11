@@ -1,17 +1,24 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FaHeart, FaSearch, FaMapMarkerAlt, FaPhone, FaEnvelope, FaBuilding, FaFilter, FaChild, FaCheckCircle, FaClock } from 'react-icons/fa'
 import Navbar from '../components/Navbar'
 import { useTheme } from '../context/ThemeContext'
 import { orphanagesAPI } from '../services/api'
+import { ScrollReveal } from '../hooks/useScrollReveal'
+import useInfiniteScroll from '../hooks/useInfiniteScroll'
+
+const ITEMS_PER_PAGE = 6
 
 const Orphanages = () => {
   const navigate = useNavigate()
   const { isDarkMode } = useTheme()
   const [orphanages, setOrphanages] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
   const [filters, setFilters] = useState({
     state: '',
     city: '',
@@ -19,42 +26,69 @@ const Orphanages = () => {
   const [showFilters, setShowFilters] = useState(false)
 
   useEffect(() => {
-    fetchOrphanages()
+    fetchOrphanages(1, true)
   }, [])
 
-  const fetchOrphanages = async () => {
+  const fetchOrphanages = async (pageNum = 1, reset = false) => {
     try {
-      setLoading(true)
+      if (reset) setLoading(true)
+      else setLoadingMore(true)
       setError(null)
-      const params = {}
+      const params = { page: pageNum, limit: ITEMS_PER_PAGE }
       if (filters.state) params.state = filters.state
       if (filters.city) params.city = filters.city
       
       const response = await orphanagesAPI.getAll(params)
-      setOrphanages(response.data.orphanages || [])
+      const newItems = response.data.orphanages || []
+      const pagination = response.data.pagination
+
+      if (reset) {
+        setOrphanages(newItems)
+      } else {
+        setOrphanages(prev => [...prev, ...newItems])
+      }
+      setPage(pageNum)
+      setHasMore(pagination?.hasMore ?? newItems.length === ITEMS_PER_PAGE)
     } catch (err) {
       console.error('Error fetching orphanages:', err)
       setError('Failed to load orphanages. Please try again.')
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
   }
+
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      fetchOrphanages(page + 1)
+    }
+  }, [loadingMore, hasMore, page, filters])
+
+  const { sentinelRef } = useInfiniteScroll(loadMore, hasMore, loadingMore)
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }))
   }
 
   const applyFilters = () => {
-    fetchOrphanages()
+    setOrphanages([])
+    setPage(1)
+    setHasMore(true)
+    fetchOrphanages(1, true)
     setShowFilters(false)
   }
 
   const clearFilters = () => {
     setFilters({ state: '', city: '' })
     setSearchTerm('')
+    setOrphanages([])
+    setPage(1)
+    setHasMore(true)
+    fetchOrphanages(1, true)
   }
 
   const filteredOrphanages = orphanages.filter(orphanage => {
+    if (!searchTerm) return true
     const matchesSearch = orphanage.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          orphanage.address?.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          orphanage.address?.state?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -67,7 +101,7 @@ const Orphanages = () => {
 
       {/* Hero Section */}
       <section className="pt-32 pb-16 bg-gradient-to-br from-teal-700 to-teal-900 dark:from-dark-800 dark:to-dark-950">
-        <div className="container mx-auto px-6 text-center">
+        <ScrollReveal animation="fade-up" className="container mx-auto px-6 text-center">
           <FaBuilding className="text-6xl text-white/80 mx-auto mb-4" />
           <h1 className="text-4xl md:text-5xl font-playfair font-bold text-white mb-4">
             Our Partner Orphanages
@@ -75,7 +109,7 @@ const Orphanages = () => {
           <p className="text-xl text-cream-100/80 max-w-2xl mx-auto">
             Discover verified orphanages across India. Each one is committed to providing love and care to children in need.
           </p>
-        </div>
+        </ScrollReveal>
       </section>
 
       {/* Search & Filter Section */}
@@ -195,6 +229,17 @@ const Orphanages = () => {
                   <OrphanageCard key={orphanage._id} orphanage={orphanage} onClick={() => navigate(`/orphanages/${orphanage._id}`)} />
                 ))}
               </div>
+              {/* Infinite scroll sentinel */}
+              {hasMore && (
+                <div ref={sentinelRef} className="flex justify-center py-8">
+                  {loadingMore && (
+                    <div className="animate-spin rounded-full h-10 w-10 border-t-4 border-b-4 border-coral-500"></div>
+                  )}
+                </div>
+              )}
+              {!hasMore && orphanages.length > 0 && (
+                <p className="text-center text-teal-500 dark:text-cream-400 py-6 text-sm">You've reached the end</p>
+              )}
             </>
           )}
         </div>
@@ -202,7 +247,7 @@ const Orphanages = () => {
 
       {/* CTA Section */}
       <section className="py-16 bg-gradient-to-r from-coral-500 to-coral-600 dark:from-dark-800 dark:to-dark-950">
-        <div className="container mx-auto px-6 text-center">
+        <ScrollReveal animation="zoom-in" className="container mx-auto px-6 text-center">
           <h2 className="text-3xl font-playfair font-bold text-white mb-4">
             Run an Orphanage?
           </h2>
@@ -215,7 +260,7 @@ const Orphanages = () => {
           >
             Register Your Orphanage
           </a>
-        </div>
+        </ScrollReveal>
       </section>
 
       {/* Footer */}

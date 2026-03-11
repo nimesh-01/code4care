@@ -7,6 +7,7 @@ const path = require('path');
 const fs = require('fs');
 const archiver = require('archiver');
 const { Parser } = require('json2csv');
+const { publishToQueue } = require('../broker/broker');
 
 const assertOrphanageAccess = (user, orphanageId) => {
     if (user.role === 'orphanAdmin') {
@@ -96,6 +97,14 @@ const initDonation = asyncHandler(async (req, res) => {
     donation.payment.orderId = order.id;
     await donation.save();
 
+    // Notify: payment initiated
+    publishToQueue('PAYMENT_NOTIFICATION.PAYMENT_INITIATED', {
+        username: req.user.name || req.user.username,
+        email: req.user.email,
+        orderId: order.id,
+        userId: req.user.id,
+    }).catch(err => console.error('Failed to publish payment init notification:', err.message));
+
     res.status(201).json({
         success: true,
         message: 'Donation initiated successfully',
@@ -182,6 +191,18 @@ const verifyDonation = asyncHandler(async (req, res) => {
             // Don't fail the verification, just log the error
         }
 
+        // Notify: payment completed
+        publishToQueue('PAYMENT_NOTIFICATION.PAYMENT_COMPLETED', {
+            username: req.user.name || req.user.username,
+            email: req.user.email,
+            orderId: razorpay_order_id,
+            amount: donation.amount,
+            currency: 'INR',
+            userId: req.user.id,
+            role: req.user.role,
+            orphanageAdminId: donation.orphanageAdminId || null,
+        }).catch(err => console.error('Failed to publish payment completed notification:', err.message));
+
         res.status(200).json({
             success: true,
             message: 'Payment verified successfully. Thank you for your donation!',
@@ -197,6 +218,14 @@ const verifyDonation = asyncHandler(async (req, res) => {
         // Update donation with failed status
         donation.status = 'failed';
         await donation.save();
+
+        // Notify: payment failed
+        publishToQueue('PAYMENT_NOTIFICATION.PAYMENT_FAILED', {
+            username: req.user.name || req.user.username,
+            email: req.user.email,
+            orderId: razorpay_order_id,
+            userId: req.user.id,
+        }).catch(err => console.error('Failed to publish payment failed notification:', err.message));
 
         res.status(400).json({
             success: false,
@@ -906,6 +935,16 @@ const getOrphanageChartStats = asyncHandler(async (req, res) => {
     });
 });
 
+// Public endpoint: total donated amount (no auth)
+const getPublicDonationStats = asyncHandler(async (req, res) => {
+    const result = await Donation.aggregate([
+        { $match: { status: 'success' } },
+        { $group: { _id: null, totalAmount: { $sum: '$amount' }, totalDonations: { $sum: 1 } } }
+    ]);
+    const stats = result[0] || { totalAmount: 0, totalDonations: 0 };
+    return res.status(200).json({ totalDonated: stats.totalAmount, totalDonations: stats.totalDonations });
+});
+
 module.exports = {
     initDonation,
     verifyDonation,
@@ -918,5 +957,6 @@ module.exports = {
     getAllDonations,
     generateReceipt,
     downloadReceipt,
-    getOrphanageChartStats
+    getOrphanageChartStats,
+    getPublicDonationStats
 };

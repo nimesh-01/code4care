@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { FaHeart, FaEnvelope, FaArrowLeft } from 'react-icons/fa'
 import { toast } from 'react-toastify'
 import { useAuth } from '../../context/AuthContext'
+import { ScrollReveal } from '../../hooks/useScrollReveal'
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('')
@@ -39,14 +40,17 @@ const ForgotPassword = () => {
     <div className="min-h-screen gradient-bg flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         {/* Logo */}
+        <ScrollReveal animation="fade-down">
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 text-3xl font-bold text-white">
             <FaHeart className="text-white" />
             SoulConnect
           </Link>
         </div>
+        </ScrollReveal>
 
         {/* Card */}
+        <ScrollReveal animation="fade-up" delay={200}>
         <div className="card">
           {!sent ? (
             <>
@@ -120,6 +124,7 @@ const ForgotPassword = () => {
             </Link>
           </div>
         </div>
+        </ScrollReveal>
       </div>
     </div>
   )

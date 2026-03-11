@@ -138,6 +138,35 @@ const sendNotification = async (req, res) => {
     }
 }
 
+// POST /api/notifications/send-bulk - Send notification to multiple recipients (admin)
+const sendBulkNotifications = async (req, res) => {
+    try {
+        const { recipientIds, recipientRole, type, title, message, data } = req.body
+
+        if (!recipientIds || !Array.isArray(recipientIds) || recipientIds.length === 0) {
+            return res.status(400).json({ message: 'recipientIds array is required' })
+        }
+        if (!title || !message) {
+            return res.status(400).json({ message: 'title and message are required' })
+        }
+
+        const docs = recipientIds.map(id => ({
+            recipient: id,
+            recipientRole: recipientRole || 'user',
+            type: type || 'general',
+            title,
+            message,
+            data: data || {},
+        }))
+
+        const notifications = await Notification.insertMany(docs)
+        res.status(201).json({ count: notifications.length, message: `Sent to ${notifications.length} recipients` })
+    } catch (err) {
+        console.error('Error sending bulk notifications:', err)
+        res.status(500).json({ message: 'Failed to send bulk notifications' })
+    }
+}
+
 module.exports = {
     getNotifications,
     getUnreadCount,
@@ -146,4 +175,5 @@ module.exports = {
     deleteNotification,
     clearReadNotifications,
     sendNotification,
+    sendBulkNotifications,
 }

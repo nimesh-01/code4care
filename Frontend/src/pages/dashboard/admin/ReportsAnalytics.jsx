@@ -3,6 +3,7 @@ import { FaChartPie, FaDownload } from 'react-icons/fa'
 import { toast } from 'react-toastify'
 import { useAdminDashboardContext } from './AdminLayout'
 import { donationAPI } from '../../../services/api'
+import { ScrollReveal } from '../../../hooks/useScrollReveal'
 
 const ReportsAnalytics = () => {
   const { metrics, data, orphanage } = useAdminDashboardContext()
@@ -227,6 +228,7 @@ const ReportsAnalytics = () => {
 
   return (
     <div className="space-y-8">
+      <ScrollReveal animation="fade-up">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Reports</p>
@@ -242,7 +244,9 @@ const ReportsAnalytics = () => {
           {downloading.all ? 'Preparing reports…' : 'Download everything'}
         </button>
       </header>
+      </ScrollReveal>
 
+      <ScrollReveal animation="fade-up" delay={100}>
       <section className="grid gap-6 md:grid-cols-2">
         {reportCatalog.map((report) => (
           <article key={report.title} className="rounded-3xl border border-white/5 bg-slate-900/40 p-6">
@@ -260,7 +264,9 @@ const ReportsAnalytics = () => {
           </article>
         ))}
       </section>
+      </ScrollReveal>
 
+      <ScrollReveal animation="fade-up" delay={200}>
       <section className="rounded-3xl border border-white/5 bg-slate-900/40 p-6">
         <div className="flex items-center gap-3">
           <FaChartPie className="text-3xl text-cyan-300" />
@@ -288,7 +294,9 @@ const ReportsAnalytics = () => {
           </div>
         </div>
       </section>
+      </ScrollReveal>
 
+      <ScrollReveal animation="fade-up" delay={300}>
       <section className="rounded-3xl border border-white/5 bg-slate-900/40 p-6">
         <h3 className="text-2xl font-semibold text-white">Compliance automation</h3>
         <p className="mt-2 text-sm text-slate-400">
@@ -300,6 +308,7 @@ const ReportsAnalytics = () => {
           <li>On-demand CSV exports for accountants.</li>
         </ul>
       </section>
+      </ScrollReveal>
     </div>
   )
 }
