@@ -34,7 +34,9 @@ const handle401Error = (error) => {
     const isListingRoute = url === '/auth/orphanages' || url === '/children' || url.endsWith('/children')
     // Skip redirect for secondary fetches (marked with skipRedirect)
     const skipRedirect = error.config?.skipRedirect
-    if (!isAuthCheck && !isListingRoute && !skipRedirect && !window.location.pathname.includes('/login')) {
+    // Don't redirect for superadmin or dashboard API calls
+    const isSuperAdminRoute = url.includes('/superadmin') || window.location.pathname.includes('/dashboard/')
+    if (!isAuthCheck && !isListingRoute && !skipRedirect && !isSuperAdminRoute && !window.location.pathname.includes('/login')) {
       // Store message and intended URL for login page
       sessionStorage.setItem('loginRedirectMessage', 'Please login to view this content')
       sessionStorage.setItem('loginRedirectUrl', window.location.pathname)
@@ -286,6 +288,19 @@ export const adminOrphanageAPI = {
     })
   },
   deleteDocument: (field, fileId) => api.delete('/auth/orphanage/document', { data: { field, fileId } }),
+}
+
+// Super Admin API
+export const superAdminAPI = {
+  getDashboardStats: () => api.get('/superadmin/dashboard-stats'),
+  // Orphanage management
+  getOrphanages: (params = {}) => api.get('/superadmin/orphanages', { params }),
+  getOrphanageById: (id) => api.get(`/superadmin/orphanages/${id}`),
+  verifyOrphanage: (id, data) => api.put(`/superadmin/orphanages/${id}/verify`, data),
+  deleteOrphanage: (id) => api.delete(`/superadmin/orphanages/${id}`),
+  // User management
+  getUsers: (params = {}) => api.get('/superadmin/users', { params }),
+  updateUserStatus: (id, data) => api.put(`/superadmin/users/${id}/status`, data),
 }
 
 // Post API (Post Service - port 3007)

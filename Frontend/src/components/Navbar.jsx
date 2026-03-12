@@ -55,7 +55,7 @@ const Navbar = () => {
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center gap-8">
             <NavLink to="/">Home</NavLink>
-            {user?.role !== 'orphanAdmin' && (
+            {user?.role !== 'orphanAdmin' && user?.role !== 'superAdmin' && (
               <>
                 <NavLink to="/children">Children</NavLink>
                 <NavLink to="/orphanages">Orphanages</NavLink>
@@ -76,7 +76,7 @@ const Navbar = () => {
             
             {user ? (
               <div className="flex items-center gap-4">
-                {user.role !== 'orphanAdmin' && (
+                {user.role !== 'orphanAdmin' && user.role !== 'superAdmin' && (
                   <Link to="/profile" className="flex items-center gap-2 text-teal-700 dark:text-teal-400 hover:text-coral-500 dark:hover:text-coral-400 transition font-medium">
                     <FaUserCircle className="text-xl" />
                     <span>Profile</span>
@@ -102,6 +102,11 @@ const Navbar = () => {
                 {user.role === 'orphanAdmin' && (
                   <Link to="/dashboard/admin" className="text-teal-700 dark:text-teal-400 hover:text-coral-500 dark:hover:text-coral-400 transition font-medium">
                     Dashboard
+                  </Link>
+                )}
+                {user.role === 'superAdmin' && (
+                  <Link to="/dashboard/superadmin" className="text-teal-700 dark:text-teal-400 hover:text-coral-500 dark:hover:text-coral-400 transition font-medium">
+                    Admin Panel
                   </Link>
                 )}
                 <button 
@@ -148,7 +153,7 @@ const Navbar = () => {
           <div className="md:hidden mt-4 pb-4 border-t border-cream-200 dark:border-dark-700 pt-4">
             <div className="flex flex-col gap-4">
               <MobileNavLink to="/" onClick={() => setIsOpen(false)}>Home</MobileNavLink>
-              {user?.role !== 'orphanAdmin' && (
+              {user?.role !== 'orphanAdmin' && user?.role !== 'superAdmin' && (
                 <>
                   <MobileNavLink to="/children" onClick={() => setIsOpen(false)}>Children</MobileNavLink>
                   <MobileNavLink to="/orphanages" onClick={() => setIsOpen(false)}>Orphanages</MobileNavLink>
@@ -162,7 +167,7 @@ const Navbar = () => {
               
               {user ? (
                 <>
-                  {user.role !== 'orphanAdmin' && (
+                  {user.role !== 'orphanAdmin' && user.role !== 'superAdmin' && (
                     <MobileNavLink to="/profile" onClick={() => setIsOpen(false)}>Profile</MobileNavLink>
                   )}
                   <MobileNavLink to="/chat" onClick={() => setIsOpen(false)}>Chat</MobileNavLink>
@@ -179,6 +184,9 @@ const Navbar = () => {
                   )}
                   {user.role === 'orphanAdmin' && (
                     <MobileNavLink to="/dashboard/admin" onClick={() => setIsOpen(false)}>Dashboard</MobileNavLink>
+                  )}
+                  {user.role === 'superAdmin' && (
+                    <MobileNavLink to="/dashboard/superadmin" onClick={() => setIsOpen(false)}>Admin Panel</MobileNavLink>
                   )}
                   <button 
                     onClick={() => { handleLogout(); setIsOpen(false); }}

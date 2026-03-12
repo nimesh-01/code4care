@@ -37,6 +37,18 @@ import OrphanagePosts from './pages/posts/OrphanagePosts'
 import Contact from './pages/Contact'
 import Privacy from './pages/Privacy'
 
+// Super Admin pages
+import SuperAdminLayout from './pages/dashboard/superadmin/SuperAdminLayout'
+import SADashboardOverview from './pages/dashboard/superadmin/SADashboardOverview'
+import SAOrphanageVerification from './pages/dashboard/superadmin/SAOrphanageVerification'
+import SAOrphanageManagement from './pages/dashboard/superadmin/SAOrphanageManagement'
+import SAOrphanageDetail from './pages/dashboard/superadmin/SAOrphanageDetail'
+import SADonationMonitoring from './pages/dashboard/superadmin/SADonationMonitoring'
+import SAUserManagement from './pages/dashboard/superadmin/SAUserManagement'
+import SAContentModeration from './pages/dashboard/superadmin/SAContentModeration'
+import SAPlatformAnalytics from './pages/dashboard/superadmin/SAPlatformAnalytics'
+import SANotifications from './pages/dashboard/superadmin/SANotifications'
+
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth()
@@ -64,6 +76,9 @@ const ProfileAccessGate = () => {
   const { user } = useAuth()
   if (user?.role === 'orphanAdmin') {
     return <Navigate to="/dashboard/admin/settings" replace />
+  }
+  if (user?.role === 'superAdmin') {
+    return <Navigate to="/dashboard/superadmin" replace />
   }
   return <Profile />
 }
@@ -175,6 +190,26 @@ function App() {
             </ProtectedRoute>
           }
         />
+
+        {/* Super Admin Dashboard */}
+        <Route
+          path="/dashboard/superadmin"
+          element={
+            <ProtectedRoute allowedRoles={['superAdmin']}>
+              <SuperAdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<SADashboardOverview />} />
+          <Route path="verification" element={<SAOrphanageVerification />} />
+          <Route path="orphanages" element={<SAOrphanageManagement />} />
+          <Route path="orphanages/:id" element={<SAOrphanageDetail />} />
+          <Route path="donations" element={<SADonationMonitoring />} />
+          <Route path="users" element={<SAUserManagement />} />
+          <Route path="content" element={<SAContentModeration />} />
+          <Route path="analytics" element={<SAPlatformAnalytics />} />
+          <Route path="notifications" element={<SANotifications />} />
+        </Route>
 
         {/* Catch all */}
         <Route path="*" element={<Navigate to="/" replace />} />

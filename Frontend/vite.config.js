@@ -6,6 +6,11 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      '/api/superadmin': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      },
       '/api/auth': {
         target: 'http://localhost:3000',
         changeOrigin: true,
