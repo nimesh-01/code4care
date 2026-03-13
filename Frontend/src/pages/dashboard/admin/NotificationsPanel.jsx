@@ -3,6 +3,7 @@ import { FaBell, FaCheck, FaCheckDouble, FaTrash, FaFilter, FaChevronDown, FaPap
 import { toast } from 'react-toastify'
 import { useNotifications } from '../../../context/NotificationContext'
 import { notificationAPI, eventAPI } from '../../../services/api'
+import { annotateEventStatus } from '../../../utils/eventStatus'
 import { ScrollReveal } from '../../../hooks/useScrollReveal'
 
 const typeAccent = {
@@ -67,7 +68,7 @@ const NotificationsPanel = () => {
     if (showCompose && events.length === 0) {
       eventAPI.getAll().then(res => {
         const list = res.data?.events || res.data || []
-        setEvents(list.filter(e => e.participants?.length > 0))
+        setEvents(list.map((event) => annotateEventStatus(event)).filter(e => e.participants?.length > 0))
       }).catch(() => {})
     }
   }, [showCompose])

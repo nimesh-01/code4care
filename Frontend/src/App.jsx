@@ -45,6 +45,7 @@ import SAOrphanageManagement from './pages/dashboard/superadmin/SAOrphanageManag
 import SAOrphanageDetail from './pages/dashboard/superadmin/SAOrphanageDetail'
 import SADonationMonitoring from './pages/dashboard/superadmin/SADonationMonitoring'
 import SAUserManagement from './pages/dashboard/superadmin/SAUserManagement'
+import SAUserDetail from './pages/dashboard/superadmin/SAUserDetail'
 import SAContentModeration from './pages/dashboard/superadmin/SAContentModeration'
 import SAPlatformAnalytics from './pages/dashboard/superadmin/SAPlatformAnalytics'
 import SANotifications from './pages/dashboard/superadmin/SANotifications'
@@ -206,6 +207,7 @@ function App() {
           <Route path="orphanages/:id" element={<SAOrphanageDetail />} />
           <Route path="donations" element={<SADonationMonitoring />} />
           <Route path="users" element={<SAUserManagement />} />
+          <Route path="users/:userId" element={<SAUserDetail />} />
           <Route path="content" element={<SAContentModeration />} />
           <Route path="analytics" element={<SAPlatformAnalytics />} />
           <Route path="notifications" element={<SANotifications />} />

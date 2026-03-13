@@ -97,6 +97,17 @@ async function loginUser(req, res) {
             return res.status(401).json({ message: "Invalid password" });
         }
 
+        if (User.status === 'blocked') {
+            return res.status(403).json({
+                message: User.blockReason || "Your account has been blocked by the Super Admin team.",
+                status: 'blocked',
+                blockedBy: 'superAdmin',
+                userId: User._id,
+                role: User.role,
+                reason: User.blockReason || null,
+            });
+        }
+
         // For orphanAdmin users, check orphanage status before allowing login
         if (User.role === 'orphanAdmin') {
             // Check if orphanageId exists
@@ -177,6 +188,7 @@ async function loginUser(req, res) {
         return res.status(200).json({
             message: "User logged in successfully",
             token,
+            status: User.status,
             user: {
                 id: User._id,
                 username: User.username,
@@ -184,6 +196,8 @@ async function loginUser(req, res) {
                 fullname: User.fullname.firstname + User.fullname.lastname,
                 role: User.role,
                 address: User.address,
+                status: User.status,
+                blockReason: User.blockReason || null,
             },
         });
     } catch (err) {
@@ -213,6 +227,8 @@ async function getCurrentUser(req, res) {
                 address: user.address,
                 profileUrl: user.profileUrl,
                 status: user.status,
+                blockReason: user.blockReason,
+                blockAppeals: user.blockAppeals,
                 orphanageId: user.orphanageId,
                 adminProfile: user.adminProfile,
                 createdAt: user.createdAt
@@ -814,8 +830,32 @@ async function deleteOrphanageDocument(req, res) {
 async function getUserById(req, res) {
     try {
         const { userId } = req.params
-        const user = await userModel.findById(userId).select('-password')
-        if (!user) return res.status(404).json({ message: 'User not found' })
+        const userDoc = await userModel
+            .findById(userId)
+            .select('-password')
+            .populate({
+                path: 'orphanageId',
+                select: 'name registrationNumber orphanage_mail orphanage_phone address status verificationNote description gallery totalChildren createdAt approvedAt coverImage website orphanAdmin',
+                populate: {
+                    path: 'orphanAdmin',
+                    select: 'fullname email phone username profileUrl status',
+                },
+            })
+
+        if (!userDoc) return res.status(404).json({ message: 'User not found' })
+
+        const user = userDoc.toObject({ virtuals: true })
+        if (user.orphanageId && typeof user.orphanageId === 'object') {
+            const orphanage = { ...user.orphanageId }
+            if (orphanage._id) {
+                orphanage._id = orphanage._id.toString()
+            }
+            user.orphanage = orphanage
+            user.orphanageId = orphanage._id || null
+        } else if (user.orphanageId) {
+            user.orphanageId = user.orphanageId.toString()
+        }
+
         return res.status(200).json({ user })
     } catch (err) {
         console.error('Error in getUserById:', err)
@@ -939,4 +979,57 @@ async function getPlatformStats(req, res) {
     }
 }
 
-module.exports = { registerUser, registerOrphan, loginUser, getCurrentUser, updateUser, logoutUser, forgotPassword, resetPassword, updateOrphanage, uploadOrphanageDocument, uploadOrphanageDocumentPublic, deleteOrphanageDocument, getOrphanage, listOrphanages, getUserById, getUsersBatch, getOrphanageById, uploadAdminIdDocumentPublic, getPlatformStats }
+async function submitBlockAppeal(req, res) {
+    try {
+        const { message, identifier, userId, role } = req.body
+        if (!message || !message.trim()) {
+            return res.status(400).json({ message: 'Appeal message is required' })
+        }
+
+        let user = null
+        if (userId) {
+            user = await userModel.findById(userId)
+        }
+        if (!user && identifier) {
+            user = await userModel.findOne({
+                $or: [
+                    { email: identifier },
+                    { username: identifier }
+                ]
+            })
+        }
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' })
+        }
+
+        const appealEntry = {
+            message: message.trim(),
+            createdAt: new Date(),
+            status: 'pending'
+        }
+
+        user.blockAppeals = user.blockAppeals || []
+        user.blockAppeals.push(appealEntry)
+        await user.save()
+
+        try {
+            await publishToQueue('SUPERADMIN_NOTIFICATION.BLOCK_APPEAL', {
+                userId: user._id,
+                username: user.username,
+                role: user.role,
+                providedRole: role,
+                message: appealEntry.message,
+            })
+        } catch (err) {
+            console.error('Failed to publish block appeal notification:', err)
+        }
+
+        return res.status(200).json({ message: 'Appeal submitted successfully', appeal: appealEntry })
+    } catch (err) {
+        console.error('Error in submitBlockAppeal:', err)
+        return res.status(500).json({ message: 'Internal Server Error' })
+    }
+}
+
+module.exports = { registerUser, registerOrphan, loginUser, getCurrentUser, updateUser, logoutUser, forgotPassword, resetPassword, updateOrphanage, uploadOrphanageDocument, uploadOrphanageDocumentPublic, deleteOrphanageDocument, getOrphanage, listOrphanages, getUserById, getUsersBatch, getOrphanageById, uploadAdminIdDocumentPublic, getPlatformStats, submitBlockAppeal }

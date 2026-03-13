@@ -25,6 +25,11 @@ const orphanageSchema = new mongoose.Schema({
         required: true
     },
 
+    description: {
+        type: String,
+        trim: true,
+    },
+
     address: {
         street: { type: String },
         city: { type: String },
@@ -49,6 +54,28 @@ const orphanageSchema = new mongoose.Schema({
         }]
     },
 
+    coverImage: {
+        url: { type: String },
+        fileId: { type: String }
+    },
+
+    gallery: [{
+        url: { type: String },
+        caption: { type: String, trim: true },
+        fileId: { type: String }
+    }],
+
+    website: {
+        type: String,
+        trim: true,
+    },
+
+    totalChildren: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
+
     status: {
         type: String,
         enum: ['pending', 'approved', 'rejected', 'blocked'],
@@ -64,7 +91,7 @@ const orphanageSchema = new mongoose.Schema({
     orphanAdmin: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User', // orphanAdmin
-        required: true
+        default: null
     },
 
     verificationNote: {

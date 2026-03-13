@@ -269,7 +269,7 @@ const VolunteerProfile = () => {
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-teal-900 dark:text-cream-50">{ev.title}</span>
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                      ev.status === 'completed'
+                      ev.status === 'completed' || ev.status === 'past'
                         ? 'bg-slate-100 text-slate-600 dark:bg-slate-600/30 dark:text-slate-300'
                         : ev.status === 'upcoming'
                           ? 'bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-200'

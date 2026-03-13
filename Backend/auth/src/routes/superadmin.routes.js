@@ -18,5 +18,7 @@ router.delete('/orphanages/:id', superadminController.deleteOrphanage)
 // User management
 router.get('/users', superadminController.listUsers)
 router.put('/users/:id/status', superadminController.updateUserStatus)
+router.put('/users/:id/role', superadminController.updateUserRole)
+router.delete('/users/:id', superadminController.deleteUser)
 
 module.exports = router

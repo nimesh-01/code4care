@@ -32,6 +32,9 @@ router.post('/registerorphan', validators.registerUserValidations, validators.or
 // Post /auth/login
 router.post('/login', validators.loginUserValidations, authController.loginUser)
 
+// Post /auth/block-appeal (public)
+router.post('/block-appeal', authController.submitBlockAppeal)
+
 // Post /auth/forgot-password
 router.post('/forgot-password', validators.forgotPasswordValidations, authController.forgotPassword)
 

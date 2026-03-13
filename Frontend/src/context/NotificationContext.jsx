@@ -1,8 +1,16 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
+import { toast } from 'react-toastify'
 import { notificationAPI } from '../services/api'
 import { useAuth } from './AuthContext'
 
 const NotificationContext = createContext(null)
+const severityToToast = {
+  danger: toast.error,
+  error: toast.error,
+  warning: toast.warn,
+  success: toast.success,
+  info: toast.info,
+}
 
 export const useNotifications = () => {
   const context = useContext(NotificationContext)
@@ -21,28 +29,52 @@ export const NotificationProvider = ({ children }) => {
   const [loading, setLoading] = useState(false)
   const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1, totalNotifications: 0, hasMore: false })
   const intervalRef = useRef(null)
+  const seenNotificationIds = useRef(new Set())
+  const hasBootstrapped = useRef(false)
+  const previousUnreadCount = useRef(0)
 
-  const fetchUnreadCount = useCallback(async () => {
-    if (!user) return
-    try {
-      const res = await notificationAPI.getUnreadCount()
-      setUnreadCount(res.data.count)
-    } catch (err) {
-      // Silent fail for polling
-    }
-  }, [user])
+  const showSystemToast = useCallback((notification) => {
+    if (!notification) return
+    const severity = (notification.data?.severity || 'info').toLowerCase()
+    const toastFn = severityToToast[severity] || toast.info
+    toastFn(
+      <div className="space-y-1">
+        <p className="font-semibold text-sm">{notification.title}</p>
+        <p className="text-xs opacity-80">{notification.message}</p>
+      </div>,
+      { toastId: `system-${notification._id}` }
+    )
+  }, [])
 
-  const fetchNotifications = useCallback(async (page = 1, filter) => {
+  const registerNotifications = useCallback((items, allowToast) => {
+    if (!Array.isArray(items) || !items.length) return
+    items.forEach((item) => {
+      const id = item?._id
+      if (!id || seenNotificationIds.current.has(id)) return
+      seenNotificationIds.current.add(id)
+      if (allowToast && item.type === 'system') {
+        showSystemToast(item)
+      }
+    })
+  }, [showSystemToast])
+
+  const fetchNotifications = useCallback(async (page = 1, filter, options = {}) => {
     if (!user) return
     try {
       setLoading(true)
       const params = { page, limit: 20 }
       if (filter) params.filter = filter
       const res = await notificationAPI.getAll(params)
+      const allowToast = Boolean(options.allowToast && hasBootstrapped.current)
       if (page === 1) {
         setNotifications(res.data.notifications)
+        registerNotifications(res.data.notifications, allowToast)
+        if (!hasBootstrapped.current) {
+          hasBootstrapped.current = true
+        }
       } else {
         setNotifications(prev => [...prev, ...res.data.notifications])
+        registerNotifications(res.data.notifications, allowToast)
       }
       setPagination(res.data.pagination)
     } catch (err) {
@@ -50,7 +82,22 @@ export const NotificationProvider = ({ children }) => {
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [user, registerNotifications])
+
+  const fetchUnreadCount = useCallback(async () => {
+    if (!user) return
+    try {
+      const res = await notificationAPI.getUnreadCount()
+      const count = res.data.count
+      if (count > previousUnreadCount.current) {
+        await fetchNotifications(1, undefined, { allowToast: true })
+      }
+      previousUnreadCount.current = count
+      setUnreadCount(count)
+    } catch (err) {
+      // Silent fail for polling
+    }
+  }, [user, fetchNotifications])
 
   const markAsRead = useCallback(async (id) => {
     try {
@@ -101,16 +148,22 @@ export const NotificationProvider = ({ children }) => {
     if (!user) {
       setNotifications([])
       setUnreadCount(0)
+      setPagination({ currentPage: 1, totalPages: 1, totalNotifications: 0, hasMore: false })
+      seenNotificationIds.current.clear()
+      hasBootstrapped.current = false
+      previousUnreadCount.current = 0
+      if (intervalRef.current) clearInterval(intervalRef.current)
       return
     }
 
+    fetchNotifications(1, undefined, { allowToast: false })
     fetchUnreadCount()
     intervalRef.current = setInterval(fetchUnreadCount, POLL_INTERVAL)
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
-  }, [user, fetchUnreadCount])
+  }, [user, fetchUnreadCount, fetchNotifications])
 
   const value = {
     notifications,

@@ -5,6 +5,7 @@ import { toast } from 'react-toastify'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
 import { ScrollReveal } from '../../hooks/useScrollReveal'
+import { authAPI } from '../../services/api'
 
 const resolveDisplayName = (user) => {
   if (!user) return 'User'
@@ -21,6 +22,8 @@ const resolveDisplayName = (user) => {
   return 'User'
 }
 
+const superAdminSupportEmail = import.meta.env.VITE_SUPERADMIN_EMAIL || 'support@soulconnect.org'
+
 const Login = () => {
   const [formData, setFormData] = useState({
     emailOrUsername: '',
@@ -30,9 +33,14 @@ const Login = () => {
   const [loading, setLoading] = useState(false)
   const [statusInfo, setStatusInfo] = useState(null)
   const [redirectMessage, setRedirectMessage] = useState(null)
+  const [redirectReason, setRedirectReason] = useState(null)
+  const [appealMessage, setAppealMessage] = useState('')
+  const [appealSending, setAppealSending] = useState(false)
+  const [appealSent, setAppealSent] = useState(false)
   const { login } = useAuth()
   const { isDarkMode, toggleTheme } = useTheme()
   const navigate = useNavigate()
+  const statusReason = statusInfo?.reason || statusInfo?.verificationNote
 
   // Check for redirect message on mount
   useEffect(() => {
@@ -41,11 +49,18 @@ const Login = () => {
       setRedirectMessage(message)
       sessionStorage.removeItem('loginRedirectMessage')
     }
+    const storedReason = sessionStorage.getItem('loginBlockedReason')
+    if (storedReason) {
+      setRedirectReason(storedReason)
+      sessionStorage.removeItem('loginBlockedReason')
+    }
   }, [])
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
     if (statusInfo) setStatusInfo(null)
+    setAppealMessage('')
+    setAppealSent(false)
   }
 
   const handleSubmit = async (e) => {
@@ -92,13 +107,55 @@ const Login = () => {
           status: errorData.status,
           message: errorData.message,
           orphanageName: errorData.orphanageName,
-          verificationNote: errorData.verificationNote
+          verificationNote: errorData.verificationNote,
+          blockedBy: errorData.blockedBy,
+          userId: errorData.userId,
+          role: errorData.role,
+          reason: errorData.reason || errorData.blockReason || errorData.verificationNote,
+        })
+      } else if (error.response?.status === 403 && errorData?.message?.toLowerCase().includes('blocked')) {
+        setStatusInfo({
+          status: 'blocked',
+          message: errorData.message,
+          blockedBy: errorData.blockedBy || 'superAdmin',
+          userId: errorData.userId,
+          role: errorData.role,
+          reason: errorData.reason || errorData.blockReason,
         })
       } else {
         toast.error(errorData?.message || 'Login failed. Please try again.')
       }
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleContactSuperAdmin = () => {
+    const subject = encodeURIComponent('Account access assistance request')
+    const identifier = formData.emailOrUsername ? `Account: ${formData.emailOrUsername}\n` : ''
+    const reason = statusInfo?.message ? `${statusInfo.message}\n\n` : ''
+    const body = encodeURIComponent(`${identifier}${reason}Please help me regain access to my account.`)
+    window.location.href = `mailto:${superAdminSupportEmail}?subject=${subject}&body=${body}`
+  }
+
+  const handleAppealSubmit = async () => {
+    if (!appealMessage.trim() || appealSending) return
+    setAppealSending(true)
+    try {
+      await authAPI.submitBlockAppeal({
+        message: appealMessage.trim(),
+        identifier: formData.emailOrUsername,
+        userId: statusInfo?.userId,
+        role: statusInfo?.role,
+      })
+      setAppealSent(true)
+      setAppealMessage('')
+      toast.success('Your message was sent to the Super Admin team.')
+    } catch (err) {
+      console.error(err)
+      toast.error('Unable to send message. Please try again later.')
+    } finally {
+      setAppealSending(false)
     }
   }
 
@@ -162,7 +219,14 @@ const Login = () => {
             <div className="mb-6 p-4 rounded-xl border-2 bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800">
               <div className="flex items-center gap-3">
                 <FaInfoCircle className="text-xl text-teal-500 flex-shrink-0" />
-                <p className="text-sm text-teal-700 dark:text-teal-300">{redirectMessage}</p>
+                <div className="text-sm text-teal-700 dark:text-teal-300 space-y-1">
+                  <p>{redirectMessage}</p>
+                  {redirectReason && (
+                    <p className="text-xs text-teal-600 dark:text-cream-300">
+                      <span className="font-semibold">Reason:</span> {redirectReason}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -183,16 +247,55 @@ const Login = () => {
                 <p className="text-sm text-teal-700 dark:text-cream-200">
                   {statusInfo.message}
                 </p>
-                {statusInfo.verificationNote && statusInfo.status !== 'pending' && (
+                {statusInfo.status === 'blocked' && (
+                  <p className="text-xs text-red-500 dark:text-red-300">
+                    {statusInfo.blockedBy === 'superAdmin'
+                      ? 'This restriction was applied by the Super Admin team.'
+                      : 'This account is currently blocked.'}
+                    {statusInfo.role && (
+                      <span className="ml-1 text-red-400 dark:text-red-200 capitalize">({statusInfo.role} account)</span>
+                    )}
+                  </p>
+                )}
+                {statusReason && statusInfo.status !== 'pending' && (
                   <div className="mt-2 p-3 bg-white/50 dark:bg-dark-700/50 rounded-lg w-full">
                     <p className="text-xs text-teal-600 dark:text-cream-400 font-medium mb-1">Reason:</p>
-                    <p className="text-sm text-teal-800 dark:text-cream-100">{statusInfo.verificationNote}</p>
+                    <p className="text-sm text-teal-800 dark:text-cream-100 whitespace-pre-line">{statusReason}</p>
                   </div>
                 )}
                 {statusInfo.status === 'pending' && (
                   <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
                     Our team is reviewing your documents. You will receive an email once approved.
                   </p>
+                )}
+                {statusInfo.status === 'blocked' && (
+                  <div className="w-full space-y-2">
+                    <textarea
+                      value={appealMessage}
+                      onChange={(e) => setAppealMessage(e.target.value)}
+                      placeholder="Explain why you should be unblocked"
+                      className="w-full rounded-xl border border-cream-200 dark:border-dark-600 bg-white dark:bg-dark-700 px-3 py-2 text-sm text-teal-900 dark:text-cream-50"
+                      rows={3}
+                      disabled={appealSent}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAppealSubmit}
+                      disabled={appealSending || appealSent || !appealMessage.trim()}
+                      className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-coral-500 px-4 py-2 text-sm font-semibold text-white hover:bg-coral-600 disabled:opacity-50"
+                    >
+                      {appealSending ? 'Sending…' : appealSent ? 'Message Sent' : 'Send Appeal to Super Admin'}
+                    </button>
+                    <p className="text-xs text-teal-600 dark:text-cream-300">
+                      Need more help? Email the Super Admin team directly at{' '}
+                      <a
+                        href={`mailto:${superAdminSupportEmail}`}
+                        className="font-semibold text-coral-500 hover:text-coral-600"
+                      >
+                        {superAdminSupportEmail}
+                      </a>
+                    </p>
+                  </div>
                 )}
               </div>
             </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { childrenAPI, donationAPI, appointmentAPI, helpRequestAPI, adminOrphanageAPI, eventAPI } from '../../../../services/api'
+import { annotateEventStatus } from '../../../../utils/eventStatus'
 import { useAuth } from '../../../../context/AuthContext'
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -233,7 +234,9 @@ export const useAdminDashboardData = () => {
         // Backend already filters appointments by orphanageId for orphanAdmin
         appointments: appointmentList ?? prev.appointments,
         helpRequests: helpList ? filterByOrphanage(helpList) : prev.helpRequests,
-        events: eventList ?? prev.events,
+        events: eventList
+          ? eventList.map((event) => annotateEventStatus(event))
+          : prev.events,
       }))
     } catch (err) {
       setError('Unable to fetch live dashboard data. Showing the cached snapshot instead.')

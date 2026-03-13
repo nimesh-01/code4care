@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import {
   FaChartLine,
@@ -11,6 +11,7 @@ import {
   FaFileAlt,
   FaCogs,
   FaBell,
+  FaBars,
   FaCircleNotch,
 } from 'react-icons/fa'
 import { MdDashboardCustomize, MdEvent, MdPostAdd } from 'react-icons/md'
@@ -44,6 +45,11 @@ const AdminLayout = () => {
   const dashboard = useAdminDashboardData()
   const location = useLocation()
   const { user } = useAuth()
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+
+  useEffect(() => {
+    setMobileNavOpen(false)
+  }, [location.pathname])
 
   return (
     <AdminDashboardContext.Provider value={dashboard}>
@@ -51,46 +57,42 @@ const AdminLayout = () => {
         <Navbar />
         <div className="flex min-h-screen pt-16">
           <aside className="hidden lg:flex w-72 flex-col border-r border-cream-200 dark:border-dark-700 bg-white/90 dark:bg-dark-800/80 backdrop-blur-xl sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto scrollbar-hide">
-            <div className="px-6 py-8 border-b border-cream-200 dark:border-dark-700">
-              <p className="text-xs uppercase tracking-[0.3em] text-teal-500 dark:text-cream-300">Orphanage Admin</p>
-              <h1 className="mt-2 text-2xl font-semibold text-teal-900 dark:text-cream-50 font-playfair">Command Center</h1>
-            </div>
-            <nav className="flex-1 overflow-y-auto scrollbar-hide px-4 py-6">
-              <ul className="space-y-1">
-                {navigation.map((item) => {
-                  const Icon = item.icon
-                  return (
-                    <li key={item.path}>
-                      <NavLink
-                        to={item.path}
-                        className={({ isActive }) => `flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
-                          isActive
-                            ? 'bg-gradient-to-r from-coral-400 to-teal-400 text-white shadow-lg shadow-coral-200/60'
-                            : 'text-teal-700 dark:text-cream-200 hover:bg-cream-50 dark:hover:bg-dark-700/60'
-                        }`}
-                      >
-                        <Icon className="text-lg" />
-                        <span>{item.label}</span>
-                      </NavLink>
-                    </li>
-                  )
-                })}
-              </ul>
-            </nav>
-            <div className="px-6 py-6 text-sm text-teal-600 dark:text-cream-300 border-t border-cream-200 dark:border-dark-700">
-              <p className="font-semibold text-teal-900 dark:text-cream-50">{user?.fullname?.firstname} {user?.fullname?.lastname}</p>
-              <p className="text-xs uppercase tracking-[0.3em] text-coral-500">Orphanage Admin</p>
-              <p className="mt-2 text-xs text-teal-400 dark:text-cream-400">Last sync • {new Date().toLocaleTimeString()}</p>
-            </div>
+            <SidebarContent user={user} />
           </aside>
+
+          <div
+            className={`fixed top-16 bottom-0 left-0 z-50 w-72 border-r border-cream-200 dark:border-dark-700 bg-white dark:bg-dark-900 shadow-2xl transition-transform duration-300 lg:hidden ${
+              mobileNavOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}
+          >
+            <SidebarContent user={user} onNavigate={() => setMobileNavOpen(false)} />
+          </div>
+          {mobileNavOpen && (
+            <button
+              type="button"
+              aria-label="Close navigation"
+              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
+              onClick={() => setMobileNavOpen(false)}
+            />
+          )}
 
           <div className="flex flex-1 flex-col">
             <header className="sticky top-16 z-10 border-b border-cream-200 dark:border-dark-700 bg-white/80 dark:bg-dark-900/80 backdrop-blur-xl">
             <div className="flex flex-col gap-4 px-6 py-4 md:flex-row md:items-center md:justify-between">
-              <div>
+              <div className="flex items-start justify-between gap-3">
+                <div>
                   <p className="text-xs uppercase tracking-[0.4em] text-teal-500 dark:text-cream-300">SoulConnect</p>
                   <h2 className="text-2xl font-semibold text-teal-900 dark:text-cream-50 font-playfair">Orphanage Operations Dashboard</h2>
                   <p className="text-sm text-teal-600 dark:text-cream-400">{location.pathname.replace('/dashboard/', '').replaceAll('-', ' ') || 'overview'}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileNavOpen(true)}
+                  className="inline-flex items-center justify-center rounded-xl border border-cream-300 bg-white p-2 text-teal-700 shadow-sm transition hover:border-coral-400 hover:text-coral-500 dark:border-dark-600 dark:bg-dark-800 dark:text-cream-100 dark:hover:text-coral-300 lg:hidden"
+                  aria-label="Open navigation"
+                >
+                  <FaBars className="text-lg" />
+                </button>
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <button
@@ -134,5 +136,42 @@ const AdminLayout = () => {
     </AdminDashboardContext.Provider>
   )
 }
+
+const SidebarContent = ({ user, onNavigate }) => (
+  <div className="flex h-full flex-col">
+    <div className="px-6 py-8 border-b border-cream-200 dark:border-dark-700">
+      <p className="text-xs uppercase tracking-[0.3em] text-teal-500 dark:text-cream-300">Orphanage Admin</p>
+      <h1 className="mt-2 text-2xl font-semibold text-teal-900 dark:text-cream-50 font-playfair">Command Center</h1>
+    </div>
+    <nav className="flex-1 overflow-y-auto scrollbar-hide px-4 py-6">
+      <ul className="space-y-1">
+        {navigation.map((item) => {
+          const Icon = item.icon
+          return (
+            <li key={item.path}>
+              <NavLink
+                to={item.path}
+                onClick={onNavigate ? () => onNavigate() : undefined}
+                className={({ isActive }) => `flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
+                  isActive
+                    ? 'bg-gradient-to-r from-coral-400 to-teal-400 text-white shadow-lg shadow-coral-200/60'
+                    : 'text-teal-700 dark:text-cream-200 hover:bg-cream-50 dark:hover:bg-dark-700/60'
+                }`}
+              >
+                <Icon className="text-lg" />
+                <span>{item.label}</span>
+              </NavLink>
+            </li>
+          )
+        })}
+      </ul>
+    </nav>
+    <div className="px-6 py-6 text-sm text-teal-600 dark:text-cream-300 border-t border-cream-200 dark:border-dark-700">
+      <p className="font-semibold text-teal-900 dark:text-cream-50">{user?.fullname?.firstname} {user?.fullname?.lastname}</p>
+      <p className="text-xs uppercase tracking-[0.3em] text-coral-500">Orphanage Admin</p>
+      <p className="mt-2 text-xs text-teal-400 dark:text-cream-400">Last sync • {new Date().toLocaleTimeString()}</p>
+    </div>
+  </div>
+)
 
 export default AdminLayout

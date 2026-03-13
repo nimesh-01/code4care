@@ -102,6 +102,7 @@ export const authAPI = {
   deleteOrphanageDocument: (field, fileId) => api.delete('/auth/orphanage/document', { data: { field, fileId } }),
   getUserById: (id) => api.get(`/auth/user/${id}`),
   getUsersBatch: (ids) => api.post('/auth/users/batch', { ids }),
+  submitBlockAppeal: (data) => api.post('/auth/block-appeal', data),
 }
 
 // Orphanages API (from auth service)
@@ -301,6 +302,8 @@ export const superAdminAPI = {
   // User management
   getUsers: (params = {}) => api.get('/superadmin/users', { params }),
   updateUserStatus: (id, data) => api.put(`/superadmin/users/${id}/status`, data),
+  updateUserRole: (id, data) => api.put(`/superadmin/users/${id}/role`, data),
+  deleteUser: (id) => api.delete(`/superadmin/users/${id}`),
 }
 
 // Post API (Post Service - port 3007)

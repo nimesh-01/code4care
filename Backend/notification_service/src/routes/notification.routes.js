@@ -10,6 +10,7 @@ const {
     clearReadNotifications,
     sendNotification,
     sendBulkNotifications,
+    broadcastNotification,
 } = require('../controllers/notification.controller')
 
 // All routes require auth
@@ -38,5 +39,8 @@ router.post('/send', sendNotification)
 
 // Send bulk notifications (admin - multiple recipients)
 router.post('/send-bulk', sendBulkNotifications)
+
+// Broadcast notifications using audience filters (super admin only)
+router.post('/broadcast', broadcastNotification)
 
 module.exports = router

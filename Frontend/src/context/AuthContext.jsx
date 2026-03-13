@@ -37,8 +37,21 @@ export const AuthProvider = ({ children }) => {
         setLoading(true)
       }
       const response = await authAPI.getCurrentUser()
-      setUser(response.data.user)
-      return response.data.user
+      const currentUser = response.data.user
+      const normalizedStatus = (currentUser?.status || '').toLowerCase()
+
+      if (normalizedStatus === 'blocked') {
+        localStorage.removeItem('token')
+        setUser(null)
+        if (currentUser?.blockReason) {
+          sessionStorage.setItem('loginRedirectMessage', 'Your account has been blocked by the Super Admin team.')
+          sessionStorage.setItem('loginBlockedReason', currentUser.blockReason)
+        }
+        return null
+      }
+
+      setUser(currentUser)
+      return currentUser
     } catch (error) {
       console.error('Auth check failed:', error)
       setUser(null)
@@ -53,9 +66,31 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     const response = await authAPI.login(credentials)
     const { user: userData, token } = response.data
+    const normalizedStatus = ((response.data.status || userData?.status || '')).toLowerCase()
+
+    if (normalizedStatus === 'blocked') {
+      if (token) {
+        localStorage.removeItem('token')
+      }
+      setUser(null)
+      const error = new Error('Account blocked')
+      error.response = {
+        data: {
+          status: 'blocked',
+          message: response.data.blockMessage || userData?.blockMessage || userData?.blockReason || 'Your account has been blocked by the Super Admin team.',
+          blockedBy: 'superAdmin',
+          userId: userData?._id,
+          role: userData?.role,
+          reason: userData?.blockReason || response.data.blockReason || userData?.blockMessage,
+        }
+      }
+      throw error
+    }
+
     if (token) {
       localStorage.setItem('token', token)
     }
+
     setUser(userData)
     const refreshedUser = await checkAuth(false)
     return refreshedUser || userData

@@ -236,7 +236,7 @@ const VolunteersManagement = () => {
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium text-teal-900 dark:text-cream-50 truncate">{ev.title}</span>
                             <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold flex-shrink-0 ${
-                              ev.status === 'completed'
+                              ev.status === 'completed' || ev.status === 'past'
                                 ? 'bg-slate-100 text-slate-600 dark:bg-slate-600/30 dark:text-slate-300'
                                 : ev.status === 'upcoming'
                                   ? 'bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-200'

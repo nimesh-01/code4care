@@ -4,8 +4,10 @@ import { FaHeart, FaHandHoldingHeart, FaUsers, FaChild, FaDonate, FaCalendarAlt,
 import Navbar from '../components/Navbar'
 import { authAPI, childrenAPI, donationAPI } from '../services/api'
 import { ScrollReveal } from '../hooks/useScrollReveal'
+import { useAuth } from '../context/AuthContext'
 
 const Home = () => {
+  const { user } = useAuth()
   const [stats, setStats] = useState({ orphanages: 0, children: 0, volunteers: 0, donated: 0 })
 
   useEffect(() => {
@@ -56,9 +58,11 @@ const Home = () => {
                 Join us in making a difference, one connection at a time.
               </p>
               <div className="flex flex-wrap gap-4">
-                <Link to="/register" className="px-8 py-4 bg-coral-500 hover:bg-coral-600 text-white font-semibold rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
-                  Get Started
-                </Link>
+                {!user && (
+                  <Link to="/register" className="px-8 py-4 bg-coral-500 hover:bg-coral-600 text-white font-semibold rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
+                    Get Started
+                  </Link>
+                )}
                 <Link to="/about" className="px-8 py-4 border-2 border-teal-600 dark:border-teal-400 text-teal-600 dark:text-teal-400 font-semibold rounded-full hover:bg-teal-600 hover:text-white dark:hover:bg-teal-400 dark:hover:text-dark-900 transition-all duration-300">
                   Learn More
                 </Link>
@@ -200,23 +204,25 @@ const Home = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-coral-400 to-coral-600 dark:from-coral-600 dark:to-coral-800 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-10 left-10 w-40 h-40 bg-white rounded-full blur-3xl"></div>
-          <div className="absolute bottom-10 right-10 w-60 h-60 bg-white rounded-full blur-3xl"></div>
-        </div>
-        <ScrollReveal animation="zoom-in" className="container mx-auto px-6 text-center relative z-10">
-          <h2 className="text-4xl font-playfair font-bold text-white mb-6">
-            Ready to Make a Difference?
-          </h2>
-          <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-            Join thousands of volunteers and donors who are already transforming lives through SoulConnect.
-          </p>
-          <Link to="/register" className="inline-block bg-white text-coral-600 font-bold py-4 px-8 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
-            Join SoulConnect Today
-          </Link>
-        </ScrollReveal>
-      </section>
+      {!user && (
+        <section className="py-20 bg-gradient-to-br from-coral-400 to-coral-600 dark:from-coral-600 dark:to-coral-800 relative overflow-hidden">
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-10 left-10 w-40 h-40 bg-white rounded-full blur-3xl"></div>
+            <div className="absolute bottom-10 right-10 w-60 h-60 bg-white rounded-full blur-3xl"></div>
+          </div>
+          <ScrollReveal animation="zoom-in" className="container mx-auto px-6 text-center relative z-10">
+            <h2 className="text-4xl font-playfair font-bold text-white mb-6">
+              Ready to Make a Difference?
+            </h2>
+            <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
+              Join thousands of volunteers and donors who are already transforming lives through SoulConnect.
+            </p>
+            <Link to="/register" className="inline-block bg-white text-coral-600 font-bold py-4 px-8 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
+              Join SoulConnect Today
+            </Link>
+          </ScrollReveal>
+        </section>
+      )}
 
       {/* Footer */}
       <footer className="bg-teal-900 dark:bg-dark-950 py-12 transition-colors duration-300">

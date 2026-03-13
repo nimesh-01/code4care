@@ -96,6 +96,38 @@ const userSchema = new mongoose.Schema({
         }
     },
 
+    blockReason: {
+        type: String,
+        default: null,
+        trim: true,
+    },
+
+    blockHistory: {
+        type: [
+            {
+                reason: { type: String, trim: true },
+                blockedAt: { type: Date, default: Date.now },
+                blockedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+                statusBefore: { type: String },
+            }
+        ],
+        default: [],
+    },
+
+    blockAppeals: {
+        type: [
+            {
+                message: { type: String, required: true, trim: true },
+                createdAt: { type: Date, default: Date.now },
+                status: { type: String, enum: ['pending', 'reviewed', 'resolved'], default: 'pending' },
+                reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+                reviewedAt: { type: Date },
+                response: { type: String, trim: true },
+            }
+        ],
+        default: [],
+    },
+
     phone: {
         type: String
     },

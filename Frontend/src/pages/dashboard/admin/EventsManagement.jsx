@@ -17,6 +17,7 @@ import {
 import { MdEvent } from 'react-icons/md'
 import { toast } from 'react-toastify'
 import { eventAPI, authAPI } from '../../../services/api'
+import { annotateEventStatus } from '../../../utils/eventStatus'
 import { useAuth } from '../../../context/AuthContext'
 import { ScrollReveal } from '../../../hooks/useScrollReveal'
 
@@ -31,12 +32,13 @@ const categoryColors = {
 const statusBadge = {
   upcoming: 'bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-200',
   ongoing: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200',
+  past: 'bg-slate-200 text-slate-700 dark:bg-slate-600/40 dark:text-slate-200',
   completed: 'bg-slate-100 text-slate-600 dark:bg-slate-600/30 dark:text-slate-300',
   cancelled: 'bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-300',
 }
 
 const categories = ['Education', 'Health', 'Fundraising', 'Cultural', 'Other']
-const statuses = ['upcoming', 'ongoing', 'completed', 'cancelled']
+const statuses = ['upcoming', 'ongoing', 'past', 'completed', 'cancelled']
 
 const formatDate = (value) => {
   if (!value) return 'TBD'
@@ -430,12 +432,14 @@ const EventsManagement = () => {
   const [participantsEvent, setParticipantsEvent] = useState(null)
   const [reminderEvent, setReminderEvent] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
+  const [viewFilter, setViewFilter] = useState('upcoming')
 
   const fetchEvents = async () => {
     try {
       setLoading(true)
       const res = await eventAPI.getAll()
-      setEvents(res.data?.events || res.data || [])
+      const rawEvents = res.data?.events || res.data || []
+      setEvents(rawEvents.map((event) => annotateEventStatus(event)))
     } catch (err) {
       toast.error('Failed to load events')
     } finally {
@@ -464,9 +468,16 @@ const EventsManagement = () => {
   const stats = useMemo(() => ({
     total: events.length,
     upcoming: events.filter(e => e.status === 'upcoming').length,
-    completed: events.filter(e => e.status === 'completed').length,
+    completed: events.filter(e => ['completed', 'past'].includes(e.status)).length,
     totalParticipants: events.reduce((sum, e) => sum + (e.participants?.length || 0), 0),
   }), [events])
+
+  const filteredEvents = useMemo(() => {
+    if (viewFilter === 'past') {
+      return events.filter((event) => ['past', 'completed', 'cancelled'].includes(event.status))
+    }
+    return events.filter((event) => !['past', 'completed', 'cancelled'].includes(event.status))
+  }, [events, viewFilter])
 
   return (
     <div className="space-y-8">
@@ -516,6 +527,38 @@ const EventsManagement = () => {
       </div>
       </ScrollReveal>
 
+      <ScrollReveal animation="fade-up" delay={150}>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-cream-200 bg-white px-5 py-3 dark:border-dark-700 dark:bg-dark-800">
+          <p className="text-sm font-medium text-teal-700 dark:text-cream-200">Show:
+            <span className="sr-only">Event view filter</span>
+          </p>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setViewFilter('upcoming')}
+              className={`rounded-full px-5 py-2 text-sm font-semibold transition ${
+                viewFilter === 'upcoming'
+                  ? 'bg-gradient-to-r from-teal-500 to-coral-500 text-white shadow-lg'
+                  : 'border border-cream-300 text-teal-600 hover:border-coral-200 dark:border-dark-600 dark:text-cream-300'
+              }`}
+            >
+              Upcoming & Live
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewFilter('past')}
+              className={`rounded-full px-5 py-2 text-sm font-semibold transition ${
+                viewFilter === 'past'
+                  ? 'bg-gradient-to-r from-slate-600 to-slate-800 text-white shadow-lg'
+                  : 'border border-cream-300 text-slate-600 hover:border-slate-400 dark:border-dark-600 dark:text-cream-300'
+              }`}
+            >
+              Past & Completed
+            </button>
+          </div>
+        </div>
+      </ScrollReveal>
+
       {/* Events List */}
       <ScrollReveal animation="fade-up" delay={200}>
       {loading ? (
@@ -534,9 +577,24 @@ const EventsManagement = () => {
             Create Event
           </button>
         </div>
+      ) : filteredEvents.length === 0 ? (
+        <div className="rounded-3xl border border-dashed border-cream-300 bg-white/70 p-8 text-center text-teal-600 dark:border-dark-600 dark:bg-dark-800 dark:text-cream-300">
+          <p className="text-lg font-semibold">
+            {viewFilter === 'past' ? 'No past events documented yet.' : 'No upcoming events scheduled right now.'}
+          </p>
+          <p className="text-sm mt-1">Switch tabs or create a new event to populate this view.</p>
+          {viewFilter === 'upcoming' && (
+            <button
+              onClick={() => setShowCreate(true)}
+              className="mt-4 rounded-full bg-coral-500 px-5 py-2 text-sm font-semibold text-white hover:bg-coral-600"
+            >
+              Schedule Event
+            </button>
+          )}
+        </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {events.map(event => (
+          {filteredEvents.map(event => (
             <div key={event._id} className="rounded-3xl border border-cream-200 bg-white overflow-hidden dark:border-dark-700 dark:bg-dark-800">
               {/* Image */}
               <div className="relative h-40 bg-gradient-to-br from-teal-400 to-coral-400 dark:from-teal-700 dark:to-coral-700">

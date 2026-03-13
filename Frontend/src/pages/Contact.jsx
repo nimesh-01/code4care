@@ -50,17 +50,17 @@ const Contact = () => {
                 <ContactInfo
                   icon={<FaEnvelope className="text-coral-500 dark:text-coral-400 text-xl" />}
                   label="Email"
-                  value="support@soulconnect.org"
+                  value="nimeshsolanki8269@gmail.com"
                 />
                 <ContactInfo
                   icon={<FaPhone className="text-coral-500 dark:text-coral-400 text-xl" />}
                   label="Phone"
-                  value="+251 911 234 567"
+                  value="8269379720"
                 />
                 <ContactInfo
                   icon={<FaMapMarkerAlt className="text-coral-500 dark:text-coral-400 text-xl" />}
                   label="Address"
-                  value="Addis Ababa, Ethiopia"
+                  value="Indore, MP, India"
                 />
               </div>
 

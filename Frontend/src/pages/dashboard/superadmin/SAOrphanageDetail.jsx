@@ -3,10 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   FaArrowLeft, FaBuilding, FaMapMarkerAlt, FaPhone, FaEnvelope,
   FaIdCard, FaUser, FaFileAlt, FaExternalLinkAlt, FaCheckCircle,
-  FaTimesCircle, FaBan, FaClock, FaCalendarAlt, FaGlobe,
+  FaTimesCircle, FaBan, FaClock, FaCalendarAlt, FaGlobe, FaUsers,
 } from 'react-icons/fa'
 import { MdPendingActions } from 'react-icons/md'
-import { superAdminAPI } from '../../../services/api'
+import { superAdminAPI, childrenAPI } from '../../../services/api'
 
 const statusConfig = {
   pending: { color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-300', label: 'Pending', icon: MdPendingActions },
@@ -23,9 +23,31 @@ const SAOrphanageDetail = () => {
   const [error, setError] = useState(null)
   const [verifyNote, setVerifyNote] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
+  const [childCount, setChildCount] = useState(null)
 
   useEffect(() => {
     fetchOrphanage()
+  }, [id])
+
+  useEffect(() => {
+    if (!id) return
+    let ignore = false
+    const fetchChildrenCount = async () => {
+      try {
+        const res = await childrenAPI.getByOrphanage(id)
+        if (ignore) return
+        const payload = res.data?.children ?? res.data?.data ?? res.data
+        if (Array.isArray(payload)) {
+          setChildCount(payload.length)
+        } else if (payload && typeof payload.count === 'number') {
+          setChildCount(payload.count)
+        }
+      } catch (err) {
+        console.error('Failed to load children count:', err)
+      }
+    }
+    fetchChildrenCount()
+    return () => { ignore = true }
   }, [id])
 
   const fetchOrphanage = async () => {
@@ -35,6 +57,7 @@ const SAOrphanageDetail = () => {
       const res = await superAdminAPI.getOrphanageById(id)
       if (res.data?.orphanage) {
         setOrphanage(res.data.orphanage)
+        setChildCount(res.data.orphanage.totalChildren ?? null)
       } else {
         setError('Orphanage data not found')
       }
@@ -75,7 +98,7 @@ const SAOrphanageDetail = () => {
         <p className="text-teal-600 dark:text-cream-400">{error || 'Orphanage not found'}</p>
         <button
           onClick={() => navigate(-1)}
-          className="btn-secondary text-sm"
+          className="btn btn-outline normal-case text-sm"
         >
           Go Back
         </button>
@@ -89,6 +112,9 @@ const SAOrphanageDetail = () => {
   const otherDocs = Array.isArray(docs.otherDocuments) ? docs.otherDocuments : []
   const statusInfo = statusConfig[orphanage.status] || statusConfig.pending
   const StatusIcon = statusInfo.icon
+  const galleryImages = Array.isArray(orphanage.gallery) ? orphanage.gallery.filter((img) => img?.url) : []
+  const coverImage = orphanage.coverImage?.url
+  const totalChildrenVisible = childCount ?? orphanage.totalChildren ?? null
 
   const formatDate = (d) => {
     try {
@@ -104,9 +130,9 @@ const SAOrphanageDetail = () => {
       <div className="flex items-center gap-4">
         <button
           onClick={() => navigate(-1)}
-          className="p-2 rounded-xl bg-cream-100 dark:bg-dark-700 text-teal-700 dark:text-cream-200 hover:bg-cream-200 dark:hover:bg-dark-600 transition"
+          className="btn btn-link btn-compact normal-case"
         >
-          <FaArrowLeft />
+          <FaArrowLeft /> Back
         </button>
         <div className="flex-1 min-w-0">
           <h2 className="text-xl font-semibold text-teal-900 dark:text-cream-50 font-playfair truncate">
@@ -133,6 +159,17 @@ const SAOrphanageDetail = () => {
             <InfoRow icon={FaIdCard} label="Registration Number" value={orphanage.registrationNumber} />
             <InfoRow icon={FaEnvelope} label="Email" value={orphanage.orphanage_mail} />
             <InfoRow icon={FaPhone} label="Phone" value={orphanage.orphanage_phone} />
+            {orphanage.website && (
+              <InfoRow
+                icon={FaGlobe}
+                label="Website"
+                value={
+                  <a href={orphanage.website} target="_blank" rel="noreferrer" className="text-coral-500 hover:underline">
+                    {orphanage.website}
+                  </a>
+                }
+              />
+            )}
             <InfoRow
               icon={FaMapMarkerAlt}
               label="Address"
@@ -156,6 +193,14 @@ const SAOrphanageDetail = () => {
                 <span className="text-xs font-medium text-teal-500 dark:text-cream-400">Verification Note</span>
                 <p className="mt-1 text-sm text-teal-800 dark:text-cream-100 bg-cream-50 dark:bg-dark-700 rounded-lg p-3">
                   {orphanage.verificationNote}
+                </p>
+              </div>
+            )}
+            {orphanage.description && (
+              <div>
+                <span className="text-xs font-medium text-teal-500 dark:text-cream-400">About</span>
+                <p className="mt-1 text-sm text-teal-800 dark:text-cream-100 bg-cream-50 dark:bg-dark-700 rounded-lg p-3">
+                  {orphanage.description}
                 </p>
               </div>
             )}
@@ -213,13 +258,53 @@ const SAOrphanageDetail = () => {
         </div>
       </div>
 
+      <div className="grid gap-6 xl:grid-cols-3">
+        <div className="rounded-2xl border border-cream-200 dark:border-dark-700 bg-white dark:bg-dark-800 p-6 space-y-5">
+          <h3 className="text-lg font-semibold text-teal-900 dark:text-cream-50 font-playfair">Impact Snapshot</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <StatCard icon={FaUsers} label="Total Children" value={totalChildrenVisible ?? '—'} accent="bg-sky-100 dark:bg-sky-500/10" />
+            <StatCard icon={FaCalendarAlt} label="Created" value={formatDate(orphanage.createdAt)} accent="bg-emerald-100 dark:bg-emerald-500/10" />
+            <StatCard icon={FaClock} label="Last Review" value={formatDate(orphanage.approvedAt || orphanage.updatedAt || orphanage.createdAt)} accent="bg-amber-100 dark:bg-amber-500/10" />
+            <StatCard icon={StatusIcon} label="Status" value={statusInfo.label} accent="bg-coral-100 dark:bg-coral-500/10" />
+          </div>
+        </div>
+
+        {(coverImage || galleryImages.length) ? (
+          <div className="xl:col-span-2 rounded-2xl border border-cream-200 dark:border-dark-700 bg-white dark:bg-dark-800 p-6 space-y-4">
+            <h3 className="text-lg font-semibold text-teal-900 dark:text-cream-50 font-playfair">Visual Gallery</h3>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {coverImage && (
+                <figure className="relative overflow-hidden rounded-2xl border border-cream-200 dark:border-dark-600">
+                  <img src={coverImage} alt="Cover" className="w-full h-48 object-cover" />
+                  <figcaption className="absolute bottom-2 left-2 px-3 py-1 rounded-full text-xs font-semibold bg-black/60 text-white">Cover Image</figcaption>
+                </figure>
+              )}
+              {galleryImages.map((img, idx) => (
+                <figure key={img.fileId || img.url || idx} className="relative overflow-hidden rounded-2xl border border-cream-200 dark:border-dark-600">
+                  <img src={img.url} alt={img.caption || `Gallery ${idx + 1}`} className="w-full h-48 object-cover" />
+                  {img.caption && (
+                    <figcaption className="absolute bottom-2 left-2 px-3 py-1 rounded-full text-xs font-semibold bg-black/60 text-white">
+                      {img.caption}
+                    </figcaption>
+                  )}
+                </figure>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="xl:col-span-2 rounded-2xl border border-dashed border-cream-300 dark:border-dark-600 bg-white dark:bg-dark-800 p-6 flex items-center justify-center text-sm text-teal-400 dark:text-cream-400/70">
+            No gallery images uploaded yet.
+          </div>
+        )}
+      </div>
+
       {/* Documents */}
       <div className="rounded-2xl border border-cream-200 dark:border-dark-700 bg-white dark:bg-dark-800 p-6 space-y-5">
         <h3 className="text-lg font-semibold text-teal-900 dark:text-cream-50 font-playfair flex items-center gap-2">
           <FaFileAlt className="text-coral-500" /> Documents
         </h3>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <DocumentCard
             label="Registration Certificate"
             url={docs.registrationCertificate?.url}
@@ -257,7 +342,7 @@ const SAOrphanageDetail = () => {
             <button
               onClick={() => handleVerify('approved')}
               disabled={actionLoading}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-green-500 hover:bg-green-600 text-white text-sm font-medium transition disabled:opacity-50"
+              className="btn btn-success normal-case"
             >
               <FaCheckCircle /> Approve
             </button>
@@ -266,7 +351,7 @@ const SAOrphanageDetail = () => {
             <button
               onClick={() => handleVerify('rejected')}
               disabled={actionLoading || !verifyNote.trim()}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-medium transition disabled:opacity-50"
+              className="btn btn-danger normal-case"
             >
               <FaTimesCircle /> Reject
             </button>
@@ -275,7 +360,7 @@ const SAOrphanageDetail = () => {
             <button
               onClick={() => handleVerify('blocked')}
               disabled={actionLoading || !verifyNote.trim()}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-500 hover:bg-gray-600 text-white text-sm font-medium transition disabled:opacity-50"
+              className="btn btn-warning normal-case"
             >
               <FaBan /> Block
             </button>
@@ -302,6 +387,16 @@ const InfoRow = ({ icon: Icon, label, value }) => {
     </div>
   )
 }
+
+const StatCard = ({ icon: Icon, label, value, accent = 'bg-cream-100 dark:bg-dark-700/40' }) => (
+  <div className={`rounded-2xl border border-cream-200 dark:border-dark-600 p-4 flex items-start gap-3 ${accent}`}>
+    <Icon className="text-teal-500 text-lg" />
+    <div>
+      <p className="text-[11px] uppercase tracking-widest text-teal-400 dark:text-cream-400/60">{label}</p>
+      <p className="text-lg font-semibold text-teal-900 dark:text-cream-50">{value}</p>
+    </div>
+  </div>
+)
 
 const DocumentCard = ({ label, url }) => (
   <div className="rounded-xl border border-cream-200 dark:border-dark-600 bg-cream-50 dark:bg-dark-700 p-4 flex items-center justify-between gap-3">

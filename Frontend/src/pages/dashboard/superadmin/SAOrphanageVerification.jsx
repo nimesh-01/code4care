@@ -85,7 +85,7 @@ const SAOrphanageVerification = () => {
       <div className="space-y-6">
         <button
           onClick={() => { setSelectedOrphanage(null); setVerifyNote('') }}
-          className="flex items-center gap-2 text-sm text-teal-600 dark:text-cream-300 hover:text-coral-500 transition"
+          className="btn btn-link normal-case"
         >
           <FaChevronLeft /> Back to list
         </button>
@@ -280,21 +280,21 @@ const SAOrphanageVerification = () => {
                 <button
                   onClick={() => handleVerify('approved')}
                   disabled={actionLoading}
-                  className="flex items-center gap-2 rounded-xl bg-green-500 hover:bg-green-600 text-white px-6 py-2.5 text-sm font-medium transition disabled:opacity-50"
+                  className="btn btn-success normal-case"
                 >
                   <FaCheckCircle /> Approve
                 </button>
                 <button
                   onClick={() => handleVerify('rejected')}
                   disabled={actionLoading || !verifyNote.trim()}
-                  className="flex items-center gap-2 rounded-xl bg-red-500 hover:bg-red-600 text-white px-6 py-2.5 text-sm font-medium transition disabled:opacity-50"
+                  className="btn btn-danger normal-case"
                 >
                   <FaTimesCircle /> Reject
                 </button>
                 <button
                   onClick={() => handleVerify('blocked')}
                   disabled={actionLoading || !verifyNote.trim()}
-                  className="flex items-center gap-2 rounded-xl bg-gray-600 hover:bg-gray-700 text-white px-6 py-2.5 text-sm font-medium transition disabled:opacity-50"
+                  className="btn btn-warning normal-case"
                 >
                   <FaBan /> Block
                 </button>
@@ -322,11 +322,7 @@ const SAOrphanageVerification = () => {
             <button
               key={s}
               onClick={() => { setFilter(s); setPage(1) }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                filter === s
-                  ? 'bg-coral-500 text-white'
-                  : 'bg-cream-100 dark:bg-dark-700 text-teal-700 dark:text-cream-200 hover:bg-cream-200 dark:hover:bg-dark-600'
-              }`}
+              className={`btn btn-compact normal-case ${filter === s ? 'btn-warning' : 'btn-ghost'}`}
             >
               {s.charAt(0).toUpperCase() + s.slice(1)}
             </button>
@@ -384,7 +380,7 @@ const SAOrphanageVerification = () => {
               </div>
               <button
                 onClick={() => viewDetails(org._id)}
-                className="flex items-center gap-2 rounded-xl border border-cream-300 dark:border-dark-600 px-4 py-2 text-sm font-medium text-teal-700 dark:text-cream-200 hover:bg-cream-50 dark:hover:bg-dark-700 transition whitespace-nowrap"
+                className="btn btn-outline normal-case whitespace-nowrap"
               >
                 <FaEye /> Review
               </button>
@@ -399,7 +395,7 @@ const SAOrphanageVerification = () => {
           <button
             disabled={page <= 1}
             onClick={() => setPage(p => p - 1)}
-            className="px-3 py-1.5 rounded-lg text-sm bg-cream-100 dark:bg-dark-700 text-teal-700 dark:text-cream-200 disabled:opacity-50 hover:bg-cream-200 dark:hover:bg-dark-600 transition"
+            className="btn btn-neutral btn-compact normal-case"
           >
             Previous
           </button>
@@ -409,7 +405,7 @@ const SAOrphanageVerification = () => {
           <button
             disabled={page >= totalPages}
             onClick={() => setPage(p => p + 1)}
-            className="px-3 py-1.5 rounded-lg text-sm bg-cream-100 dark:bg-dark-700 text-teal-700 dark:text-cream-200 disabled:opacity-50 hover:bg-cream-200 dark:hover:bg-dark-600 transition"
+            className="btn btn-neutral btn-compact normal-case"
           >
             Next
           </button>

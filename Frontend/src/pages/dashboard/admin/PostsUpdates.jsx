@@ -33,6 +33,8 @@ const PostsUpdates = () => {
 
   // Engagement modal state
   const [engagementPostId, setEngagementPostId] = useState(null)
+  const [deleteCandidate, setDeleteCandidate] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (user?.orphanageId) fetchPosts()
@@ -141,13 +143,23 @@ const PostsUpdates = () => {
   }
 
   // --- Delete ---
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this post permanently?')) return
+  const confirmDelete = (post) => {
+    setDeleteCandidate(post)
+  }
+
+  const handleDelete = async () => {
+    if (!deleteCandidate) return
     try {
-      await postAPI.delete(id)
+      setDeleting(true)
+      await postAPI.delete(deleteCandidate._id)
       toast.success('Post deleted')
-      setPosts(prev => prev.filter(p => p._id !== id))
-    } catch { toast.error('Failed to delete post') }
+      setPosts((prev) => prev.filter((p) => p._id !== deleteCandidate._id))
+      setDeleteCandidate(null)
+    } catch {
+      toast.error('Failed to delete post')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const formatDate = (date) => {
@@ -344,7 +356,7 @@ const PostsUpdates = () => {
                       <FaEdit /> Edit
                     </button>
                     <button
-                      onClick={() => handleDelete(post._id)}
+                      onClick={() => confirmDelete(post)}
                       className="inline-flex items-center gap-1 rounded-lg border border-red-200 dark:border-red-900/40 px-3 py-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
                     >
                       <FaTrash /> Delete
@@ -384,6 +396,15 @@ const PostsUpdates = () => {
         />
       )}
 
+      {deleteCandidate && (
+        <DeletePostDialog
+          post={deleteCandidate}
+          loading={deleting}
+          onCancel={() => (!deleting ? setDeleteCandidate(null) : null)}
+          onConfirm={handleDelete}
+        />
+      )}
+
       {/* Tips section */}
       <ScrollReveal animation="fade-up" delay={200}>
       <section className="rounded-2xl border border-cream-200 dark:border-dark-700 bg-white dark:bg-dark-800 p-6">
@@ -400,3 +421,40 @@ const PostsUpdates = () => {
 }
 
 export default PostsUpdates
+
+const DeletePostDialog = ({ post, loading, onCancel, onConfirm }) => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+    <div className="w-full max-w-md rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900 to-slate-950 p-6 text-white shadow-2xl" role="dialog" aria-modal="true">
+      <div className="flex items-center gap-3 text-coral-300">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-coral-500/10">
+          <FaTrash />
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-[0.4em] text-coral-300/80">Confirm</p>
+          <h3 className="text-2xl font-semibold">Delete this post?</h3>
+        </div>
+      </div>
+      <p className="mt-4 text-sm text-slate-200">
+        This action permanently removes the post <span className="font-semibold text-white">{post.caption?.slice(0, 40) || 'Untitled post'}</span> and all its engagement data. This cannot be undone.
+      </p>
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={loading}
+          className="flex-1 rounded-xl border border-white/10 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/5 disabled:opacity-50"
+        >
+          Keep Post
+        </button>
+        <button
+          type="button"
+          onClick={onConfirm}
+          disabled={loading}
+          className="flex-1 rounded-xl bg-gradient-to-r from-rose-500 to-orange-500 px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:from-rose-600 hover:to-orange-600 disabled:opacity-50"
+        >
+          {loading ? <FaSpinner className="mx-auto animate-spin" /> : 'Delete Permanently'}
+        </button>
+      </div>
+    </div>
+  </div>
+)
