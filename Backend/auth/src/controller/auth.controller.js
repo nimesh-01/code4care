@@ -10,6 +10,31 @@ const crypto = require('crypto')
 const { uploadBuffer, deleteFile } = require('../services/imagekit.service')
 
 const ADMIN_ID_UPLOAD_ALLOWED_STATUSES = ['pending', 'rejected', 'blocked']
+const ONE_DAY_MS = 24 * 60 * 60 * 1000
+const isProduction = process.env.NODE_ENV === 'production' || process.env.COOKIE_SECURE === 'true'
+
+const authCookieOptions = {
+    httpOnly: true,
+    maxAge: ONE_DAY_MS,
+    sameSite: isProduction ? 'None' : 'Lax',
+    secure: isProduction,
+}
+
+if (isProduction) {
+    authCookieOptions.partitioned = true // Allow third-party contexts (Chrome CHIPS)
+    authCookieOptions.domain = process.env.COOKIE_DOMAIN || '.onrender.com'
+}
+
+const clearCookieOptions = { ...authCookieOptions }
+delete clearCookieOptions.maxAge
+
+const setAuthCookie = (res, token) => {
+    res.cookie('token', token, authCookieOptions)
+}
+
+const clearAuthCookie = (res) => {
+    res.clearCookie('token', clearCookieOptions)
+}
 
 async function registerUser(req, res) {
     try {
@@ -56,11 +81,7 @@ async function registerUser(req, res) {
             email: user.email,
             role: user.role
         }, process.env.JWT_SECRET, { expiresIn: '1d' })
-        res.cookie("token", token, {
-            httpOnly: true,
-            secure: true,
-            maxage: 24 * 60 * 60 * 1000
-        })
+        setAuthCookie(res, token)
 
         res.status(201).json({
             message: "User registered successfully",
@@ -178,12 +199,7 @@ async function loginUser(req, res) {
             { expiresIn: "1d" }
         );
 
-        res.cookie("token", token, {
-            httpOnly: true,
-            secure: true,
-            maxAge: 24 * 60 * 60 * 1000,
-            sameSite: "None",
-        });
+        setAuthCookie(res, token)
 
         return res.status(200).json({
             message: "User logged in successfully",
@@ -388,10 +404,7 @@ async function logoutUser(req, res) {
     if (token) {
         await redis.set(`Blacklist:${token}`, 'true', 'EX', 24 * 60 * 60)
     }
-    res.clearCookie('token', {
-        httpOnly: true,
-        secure: true
-    })
+    clearAuthCookie(res)
     return res.status(200).json({ message: "Logged out successfully" })
 }
 async function forgotPassword(req, res) {
