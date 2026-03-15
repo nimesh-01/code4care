@@ -15,6 +15,15 @@ const isProduction = process.env.NODE_ENV === 'production' || process.env.COOKIE
 const usePartitionedCookies = process.env.COOKIE_PARTITIONED === 'true'
 const cookieDomain = process.env.COOKIE_DOMAIN || '.onrender.com'
 
+const originHost = (() => {
+    try {
+        const url = new URL(process.env.FRONTEND_URL || '')
+        return url.hostname || null
+    } catch {
+        return null
+    }
+})()
+
 const authCookieOptions = {
     httpOnly: true,
     maxAge: ONE_DAY_MS,
@@ -22,7 +31,9 @@ const authCookieOptions = {
     secure: isProduction,
 }
 
-if (isProduction) {
+if (isProduction && originHost) {
+    authCookieOptions.domain = originHost
+} else if (isProduction) {
     authCookieOptions.domain = cookieDomain
 }
 
