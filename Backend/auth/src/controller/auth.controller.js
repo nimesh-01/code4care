@@ -12,6 +12,8 @@ const { uploadBuffer, deleteFile } = require('../services/imagekit.service')
 const ADMIN_ID_UPLOAD_ALLOWED_STATUSES = ['pending', 'rejected', 'blocked']
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
 const isProduction = process.env.NODE_ENV === 'production' || process.env.COOKIE_SECURE === 'true'
+const usePartitionedCookies = process.env.COOKIE_PARTITIONED === 'true'
+const cookieDomain = process.env.COOKIE_DOMAIN || '.onrender.com'
 
 const authCookieOptions = {
     httpOnly: true,
@@ -21,8 +23,11 @@ const authCookieOptions = {
 }
 
 if (isProduction) {
-    authCookieOptions.partitioned = true // Allow third-party contexts (Chrome CHIPS)
-    authCookieOptions.domain = process.env.COOKIE_DOMAIN || '.onrender.com'
+    authCookieOptions.domain = cookieDomain
+}
+
+if (usePartitionedCookies) {
+    authCookieOptions.partitioned = true // Opt-in only when explicitly requested
 }
 
 const clearCookieOptions = { ...authCookieOptions }
