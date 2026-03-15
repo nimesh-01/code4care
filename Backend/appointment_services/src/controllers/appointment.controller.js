@@ -38,17 +38,27 @@ const getOrphanageDetails = async (orphanageId, req) => {
 };
 
 const resolveOrphanageId = async (req) => {
-    try {
-        const authUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:3000/auth/orphanage';
-        const headers = {};
-        if (req.headers && req.headers.cookie) headers['Cookie'] = req.headers.cookie;
-        const resp = await axios.get(authUrl, { headers, withCredentials: true });
-        if (resp?.data?.orphanage?._id) return resp.data.orphanage._id;
-    } catch (e) {
-        console.warn('Could not fetch orphanage from auth service:', e.message);
+    const role = normalizeRole(req.user?.role)
+    if (role !== 'orphanadmin') {
+        return null
     }
-    return null;
-};
+
+    if (req.user?.orphanageId) {
+        return req.user.orphanageId
+    }
+
+    try {
+        const authBase = process.env.AUTH_SERVICE_URL || 'http://localhost:3000'
+        const headers = {}
+        if (req.headers?.cookie) headers['Cookie'] = req.headers.cookie
+        if (req.headers?.authorization) headers['Authorization'] = req.headers.authorization
+        const resp = await axios.get(`${authBase}/auth/orphanage`, { headers, withCredentials: true })
+        if (resp?.data?.orphanage?._id) return resp.data.orphanage._id
+    } catch (e) {
+        console.warn('Could not fetch orphanage from auth service:', e.message)
+    }
+    return null
+}
 
 const requestAppointment = async (req, res) => {
     const errors = validationResult(req);
