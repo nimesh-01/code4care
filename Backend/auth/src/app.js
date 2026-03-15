@@ -7,6 +7,15 @@ const cookieParser = require('cookie-parser')
 const app = express()
 
 // CORS configuration
+const fallbackOrigins = [
+    process.env.FRONTEND_URL,
+    process.env.CLIENT_URL,
+    'https://soulconnnect-frontend.onrender.com', // Render deployment
+    'https://soulconnect-frontend.onrender.com', // alt spelling safeguard
+    'http://localhost:5173',
+    'http://localhost:3000'
+]
+
 const allowedOrigins = (() => {
     if (process.env.CORS_ALLOWED_ORIGINS === '*') return '*'
     if (process.env.CORS_ALLOWED_ORIGINS) {
@@ -14,7 +23,7 @@ const allowedOrigins = (() => {
             .map((origin) => origin.trim())
             .filter(Boolean)
     }
-    return [process.env.FRONTEND_URL?.trim() || 'http://localhost:5173']
+    return [...new Set(fallbackOrigins.filter(Boolean).map((origin) => origin.trim()))]
 })()
 
 const corsOptions = {
