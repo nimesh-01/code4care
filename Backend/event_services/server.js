@@ -5,9 +5,16 @@ const { connect: connectRabbit } = require('./src/broker/broker');
 
 const PORT = process.env.PORT || 3008;
 
-connectDb();
-connectRabbit();
+async function start() {
+  try {
+    await Promise.all([connectDb(), connectRabbit()]);
+    app.listen(PORT, () => {
+      console.log(`Event Service running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error('Failed to initialize Event Service', error);
+    process.exit(1);
+  }
+}
 
-app.listen(PORT, () => {
-  console.log(`Event Service running on port ${PORT}`);
-});
+start();

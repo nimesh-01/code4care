@@ -7,16 +7,30 @@ const postRoutes = require('./routes/postRoutes')
 const app = express()
 
 // CORS configuration
-const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
-  ? process.env.CORS_ALLOWED_ORIGINS.split(',')
-  : [process.env.FRONTEND_URL || 'http://localhost:5173']
+const allowedOrigins = (() => {
+  if (process.env.CORS_ALLOWED_ORIGINS === '*') return '*'
+  if (process.env.CORS_ALLOWED_ORIGINS) {
+    return process.env.CORS_ALLOWED_ORIGINS.split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean)
+  }
+  const fallbacks = [process.env.FRONTEND_URL, process.env.CLIENT_URL, 'http://localhost:5173', 'http://localhost:3000']
+  return [...new Set(fallbacks.filter(Boolean).map((origin) => origin.trim()))]
+})()
+
 const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true)
-    if (allowedOrigins.indexOf(origin) !== -1) return callback(null, true)
-    return callback(new Error('CORS policy: This origin is not allowed'))
-  },
+  origin:
+    allowedOrigins === '*'
+      ? true
+      : (origin, callback) => {
+          if (!origin) return callback(null, true)
+          if (allowedOrigins.includes(origin)) return callback(null, true)
+          return callback(new Error('CORS policy: This origin is not allowed'))
+        },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204,
 }
 
 app.use(cors(corsOptions))

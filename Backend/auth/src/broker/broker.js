@@ -5,13 +5,18 @@ let channel, connection
 async function connect() {
     if (connection) return connection
 
+    if (!process.env.RABBIT_URL) {
+        throw new Error('RABBIT_URL env variable is missing')
+    }
+
     try {
         connection = await amqplib.connect(process.env.RABBIT_URL)
-        console.log("Connected to rabbitmq")
+        console.log('Connected to rabbitmq')
         channel = await connection.createChannel()
-
+        return connection
     } catch (error) {
-        console.error("Error connecting to rabbitMQ : ", error)
+        console.error('Error connecting to rabbitMQ : ', error)
+        throw error
     }
 }
 
@@ -34,7 +39,7 @@ async function subscribeToQueue(queueName, callback) {
     })
     channel.consume(queueName, async (msg) => {
         if (msg !== null) {
-            const data = json.parse(msg.content.toString())
+            const data = JSON.parse(msg.content.toString())
             await callback(data)
             channel.ack(msg)
         }

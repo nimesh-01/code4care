@@ -5,10 +5,16 @@ require('dotenv').config();
 
 const PORT = process.env.PORT || 3006;
 
-// Connect to MongoDB and RabbitMQ
-connectDB();
-connectRabbit();
+async function start() {
+    try {
+        await Promise.all([connectDB(), connectRabbit()]);
+        app.listen(PORT, () => {
+            console.log(`💰 Donation & Payment Service running on port ${PORT}`);
+        });
+    } catch (error) {
+        console.error('Failed to initialize Donation Service', error);
+        process.exit(1);
+    }
+}
 
-app.listen(PORT, () => {
-    console.log(`💰 Donation & Payment Service running on port ${PORT}`);
-});
+start();

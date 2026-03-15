@@ -1,11 +1,20 @@
 require('dotenv').config()
 const app = require('./src/app')
 const { connect } = require('./src/broker/broker')
-const connectDb=require('./src/db/db')
-connect()
-connectDb()
+const connectDb = require('./src/db/db')
 
-app.listen(3000, () => {
-    console.log("Server is running on port 3000");
+const PORT = process.env.PORT || 3000
 
-})
+async function start() {
+    try {
+        await Promise.all([connectDb(), connect()])
+        app.listen(PORT, () => {
+            console.log(`Auth service is running on port ${PORT}`)
+        })
+    } catch (error) {
+        console.error('Failed to initialize auth service', error)
+        process.exit(1)
+    }
+}
+
+start()
