@@ -29,6 +29,7 @@ const authCookieOptions = {
     maxAge: ONE_DAY_MS,
     sameSite: isProduction ? 'None' : 'Lax',
     secure: isProduction,
+    path: '/' ,
 }
 
 if (isProduction && originHost) {

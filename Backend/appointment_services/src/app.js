@@ -12,7 +12,13 @@ const allowedOrigins = (() => {
       .map((origin) => origin.trim())
       .filter(Boolean);
   }
-  const fallbacks = [process.env.FRONTEND_URL, process.env.CLIENT_URL, 'http://localhost:5173', 'http://localhost:3000'];
+  const fallbacks = [
+    'https://soulconnect-frontend-00zy.onrender.com',
+    'http://localhost:5173',
+    process.env.FRONTEND_URL,
+    process.env.CLIENT_URL,
+    'http://localhost:3000'
+  ];
   return [...new Set(fallbacks.filter(Boolean).map((origin) => origin.trim()))];
 })();
 
