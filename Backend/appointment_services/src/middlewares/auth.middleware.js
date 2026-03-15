@@ -1,28 +1,36 @@
 
 const jwt = require('jsonwebtoken')
 
-async function authMiddleware(req, res, next) {
-    let token = req.cookies.token
-
-    if (!token && req.headers.authorization) {
-        const parts = req.headers.authorization.split(' ')
-        if (parts.length === 2 && parts[0].toLowerCase() === 'bearer') {
-            token = parts[1]
-        }
+const extractToken = (req) => {
+    if (req.cookies?.token) {
+        return req.cookies.token
     }
 
+    if (req.signedCookies?.token) {
+        return req.signedCookies.token
+    }
+
+    const authHeader = req.headers.authorization || req.headers.Authorization
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        return authHeader.substring(7)
+    }
+
+    return null
+}
+
+async function authMiddleware(req, res, next) {
+    const token = extractToken(req)
+
     if (!token) {
-        return res.status(401).json({ message: "Unauthorised" })
+        return res.status(401).json({ message: 'Unauthorised' })
     }
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET)
-        const user = decoded
-        req.user = user
+        req.user = decoded
         next()
+    } catch (err) {
+        return res.status(401).json({ message: 'Unauthorised' })
     }
-    catch (err) {
-        return res.status(401).json({ message: "Unauthorised" })
-    }
-
 }
+
 module.exports = { authMiddleware }
