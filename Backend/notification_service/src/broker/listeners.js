@@ -2,7 +2,7 @@ const { subscribeToQueue } = require('./broker')
 const sendEmail = require('../email')
 const Notification = require('../models/notification.model')
 
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
 
 // Helper to create in-app notification (silent fail - email is primary)
 const createInAppNotification = async ({ recipient, recipientRole, type, title, message, data }) => {

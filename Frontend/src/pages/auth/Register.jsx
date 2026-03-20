@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { 
   FaHeart, FaEnvelope, FaLock, FaUser, FaUserTie, FaUserShield, 
   FaEye, FaEyeSlash, FaPhone, FaMapMarkerAlt, FaBuilding, FaIdCard, FaSun, FaMoon,
-  FaFileAlt, FaUpload, FaTimesCircle, FaGlobe, FaPlus
+  FaFileAlt, FaUpload, FaTimesCircle, FaGlobe, FaPlus, FaMagic
 } from 'react-icons/fa'
 import { toast } from 'react-toastify'
 import { useAuth } from '../../context/AuthContext'
@@ -53,6 +53,7 @@ const Register = () => {
     adminIdDocument: null,
     otherDocuments: [],
   })
+  const [errors, setErrors] = useState({})
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -107,16 +108,18 @@ const Register = () => {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
+    if (errors[e.target.name]) setErrors(prev => ({ ...prev, [e.target.name]: null }))
   }
 
   const handleFileChange = (e, fieldName) => {
     const file = e.target.files[0]
     if (file) {
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        toast.error('File size must be less than 5MB')
+        setErrors(prev => ({ ...prev, [fieldName]: 'File size must be less than 5MB' }))
         return
       }
       setDocuments({ ...documents, [fieldName]: file })
+      if (errors[fieldName]) setErrors(prev => ({ ...prev, [fieldName]: null }))
     }
   }
 
@@ -124,17 +127,18 @@ const Register = () => {
     const file = e.target.files[0]
     if (file) {
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        toast.error('File size must be less than 5MB')
+        setErrors(prev => ({ ...prev, otherDocuments: 'File size must be less than 5MB' }))
         return
       }
       if (documents.otherDocuments.length >= 5) {
-        toast.error('Maximum 5 additional documents allowed')
+        setErrors(prev => ({ ...prev, otherDocuments: 'Maximum 5 additional documents allowed' }))
         return
       }
       setDocuments({ 
         ...documents, 
         otherDocuments: [...documents.otherDocuments, { file, name: file.name }] 
       })
+      if (errors.otherDocuments) setErrors(prev => ({ ...prev, otherDocuments: null }))
     }
   }
 
@@ -154,97 +158,152 @@ const Register = () => {
     setStep(2)
   }
 
+  const validatePassword = (password) => {
+    const minLength = 8
+    const hasUpperCase = /[A-Z]/.test(password)
+    const hasLowerCase = /[a-z]/.test(password)
+    const hasNumbers = /\d/.test(password)
+    const hasSpecialChar = /[!@#$%^&*()_+]/.test(password)
+    return password.length >= minLength && hasUpperCase && hasLowerCase && hasNumbers && hasSpecialChar
+  }
+
+  const generateStrongPassword = () => {
+    const length = 12
+    const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    const lower = "abcdefghijklmnopqrstuvwxyz"
+    const numbers = "0123456789"
+    const special = "!@#$%^&*()_+"
+    const all = upper + lower + numbers + special
+
+    let password = ""
+    // Ensure at least one of each required character type
+    password += upper.charAt(Math.floor(Math.random() * upper.length))
+    password += lower.charAt(Math.floor(Math.random() * lower.length))
+    password += numbers.charAt(Math.floor(Math.random() * numbers.length))
+    password += special.charAt(Math.floor(Math.random() * special.length))
+
+    // Fill the rest with random characters
+    for (let i = password.length; i < length; i++) {
+        password += all.charAt(Math.floor(Math.random() * all.length))
+    }
+
+    // Shuffle the characters
+    password = password.split('').sort(() => 0.5 - Math.random()).join('')
+
+    setFormData({ ...formData, password, confirmPassword: password })
+    setShowPassword(true) // Show the password
+    setShowConfirmPassword(true)
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(password)
+      .then(() => toast.success("Strong password generated and copied to clipboard!"))
+      .catch(() => toast.success("Strong password generated!"))
+  }
+
   const validateStep2 = () => {
-    if (!formData.username || !formData.firstname || !formData.email) {
-      toast.error('Please fill in all required fields')
-      return false
+    const newErrors = {}
+    if (!formData.username) newErrors.username = 'Username is required'
+    else if (formData.username.length < 3) newErrors.username = 'Username must be at least 3 characters'
+
+    if (!formData.firstname) newErrors.firstname = 'First name is required'
+
+    if (!formData.email) newErrors.email = 'Email address is required'
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address'
     }
-    if (formData.username.length < 3) {
-      toast.error('Username must be at least 3 characters')
-      return false
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      toast.error('Please enter a valid email address')
-      return false
-    }
+
     if (isAdmin && !formData.phone) {
-      toast.error('Phone number is required for orphanage admins')
-      return false
+      newErrors.phone = 'Phone number is required for orphanage admins'
     }
-    return true
+    
+    if (formData.phone && !/^\d{10}$/.test(formData.phone)) {
+      newErrors.phone = 'Phone number must be exactly 10 digits'
+    }
+    
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
 
   const validateStep3 = () => {
-    if (!formData.password || !formData.confirmPassword) {
-      toast.error('Please fill in all password fields')
-      return false
+    const newErrors = {}
+    if (!formData.password) newErrors.password = 'Password is required'
+    else if (!validatePassword(formData.password)) {
+      newErrors.password = 'Password must meet all requirements'
     }
-    if (formData.password.length < 6) {
-      toast.error('Password must be at least 6 characters long')
-      return false
+
+    if (!formData.confirmPassword) newErrors.confirmPassword = 'Please confirm your password'
+    else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match'
     }
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match')
-      return false
-    }
-    return true
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
 
   const validateAdminInfo = () => {
     if (!isAdmin) return true
+    const newErrors = {}
 
     if (!formData.adminDesignation) {
-      toast.error('Designation is required for orphanage admins')
-      return false
+      newErrors.adminDesignation = 'Designation is required'
     }
 
     if (!formData.governmentIdType) {
-      toast.error('Please select a government ID type')
-      return false
+      newErrors.governmentIdType = 'Please select a government ID type'
     }
 
-    if (!formData.governmentIdNumber || formData.governmentIdNumber.length < 4) {
-      toast.error('Please provide a valid government ID number')
-      return false
+    if (!formData.governmentIdNumber) {
+      newErrors.governmentIdNumber = 'Government ID number is required'
+    } else if (formData.governmentIdNumber.length < 4) {
+      newErrors.governmentIdNumber = 'Please provide a valid government ID number'
     }
 
-    if (!formData.emergencyContactName || !formData.emergencyContactPhone) {
-      toast.error('Emergency contact name and phone are required')
-      return false
+    if (!formData.emergencyContactName) newErrors.emergencyContactName = 'Emergency contact name is required'
+    if (!formData.emergencyContactPhone) newErrors.emergencyContactPhone = 'Emergency contact phone is required'
+    else if (!/^\d{10}$/.test(formData.emergencyContactPhone)) newErrors.emergencyContactPhone = 'Phone number must be exactly 10 digits'
+
+    if (formData.adminAlternatePhone && !/^\d{10}$/.test(formData.adminAlternatePhone)) {
+        newErrors.adminAlternatePhone = 'Phone number must be exactly 10 digits'
     }
 
-    return true
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
 
   const validateRoleSpecificFields = () => {
     if (isAdmin) {
-      if (!formData.orphanageName || !formData.orphanageAddress || !formData.registrationNumber) {
-        toast.error('Please fill in all required orphanage details')
-        return false
-      }
-      if (!formData.orphanageEmail) {
-        toast.error('Orphanage email is required')
-        return false
-      }
-      if (!formData.orphanagePhone) {
-        toast.error('Orphanage phone number is required')
-        return false
-      }
-      if (!formData.orphanageCity || !formData.orphanageState) {
-        toast.error('City and State are required')
-        return false
-      }
+      const newErrors = {}
+      if (!formData.orphanageName) newErrors.orphanageName = 'Orphanage name is required'
+      if (!formData.orphanageAddress) newErrors.orphanageAddress = 'Street address is required'
+      if (!formData.registrationNumber) newErrors.registrationNumber = 'Registration number is required'
+      
+      if (!formData.orphanageEmail) newErrors.orphanageEmail = 'Orphanage email is required'
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.orphanageEmail)) newErrors.orphanageEmail = 'Invalid email address'
+
+      if (!formData.orphanagePhone) newErrors.orphanagePhone = 'Orphanage phone number is required'
+      else if (!/^\d{10}$/.test(formData.orphanagePhone)) newErrors.orphanagePhone = 'Phone number must be exactly 10 digits'
+
+      if (!formData.orphanageCity) newErrors.orphanageCity = 'City is required'
+      if (!formData.orphanageState) newErrors.orphanageState = 'State is required'
+      
+      setErrors(newErrors)
+      return Object.keys(newErrors).length === 0
     }
     return true
   }
 
   const nextStep = () => {
-    if (step === 2 && !validateStep2()) return
-    if (step === 3 && !validateStep3()) return
-    if (isAdmin && step === 4 && !validateAdminInfo()) return
-    if (isAdmin && step === 5 && !validateRoleSpecificFields()) return
-    const totalSteps = getTotalSteps()
-    setStep((prev) => Math.min(prev + 1, totalSteps))
+    let isValid = false
+    if (step === 2) isValid = validateStep2()
+    else if (step === 3) isValid = validateStep3()
+    else if (step === 4 && isAdmin) isValid = validateAdminInfo()
+    else if (step === 5 && isAdmin) isValid = validateRoleSpecificFields()
+    else isValid = true
+
+    if (isValid) {
+      const totalSteps = getTotalSteps()
+      setStep((prev) => Math.min(prev + 1, totalSteps))
+    }
   }
 
   const prevStep = () => {
@@ -253,11 +312,15 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setErrors({})
 
+    // Final validation check before submission
+    if (!isAdmin && !validateStep3()) return
     if (isAdmin && !validateAdminInfo()) return
     if (!validateRoleSpecificFields()) return
+
     if (isAdmin && !documents.adminIdDocument) {
-      toast.error('Government ID proof is required to verify the admin')
+      setErrors(prev => ({ ...prev, adminIdDocument: 'Government ID proof is required' }))
       return
     }
 
@@ -381,7 +444,8 @@ const Register = () => {
         // OrphanAdmin registration - show pending message and redirect to login
         toast.success(result.message || 'Registration successful! Your orphanage is under review.')
         navigate('/login')
-      } else {
+       // Only show generic error toast or inline error
+       } else {
         // Regular user/volunteer registration - redirect based on role
         toast.success('Registration successful! Welcome to SoulConnect!')
         const destination = result.user?.role === 'orphanAdmin' ? '/dashboard/admin' : '/'
@@ -504,9 +568,10 @@ const Register = () => {
                       value={formData.username}
                       onChange={handleChange}
                       placeholder="Choose a unique username"
-                      className="w-full pl-11 pr-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                      className={`w-full pl-11 pr-4 py-3 bg-cream-50 dark:bg-dark-700 border ${errors.username ? 'border-red-500' : 'border-cream-200 dark:border-dark-600'} rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300`}
                     />
                   </div>
+                  {errors.username && <p className="mt-1 text-sm text-red-500">{errors.username}</p>}
                 </div>
 
                 {/* Name Fields */}
@@ -521,8 +586,9 @@ const Register = () => {
                       value={formData.firstname}
                       onChange={handleChange}
                       placeholder="First name"
-                      className="w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                      className={`w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border ${errors.firstname ? 'border-red-500' : 'border-cream-200 dark:border-dark-600'} rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300`}
                     />
+                    {errors.firstname && <p className="mt-1 text-sm text-red-500">{errors.firstname}</p>}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-teal-800 dark:text-cream-100 mb-2">
@@ -552,9 +618,10 @@ const Register = () => {
                       value={formData.email}
                       onChange={handleChange}
                       placeholder="you@example.com"
-                      className="w-full pl-11 pr-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                      className={`w-full pl-11 pr-4 py-3 bg-cream-50 dark:bg-dark-700 border ${errors.email ? 'border-red-500' : 'border-cream-200 dark:border-dark-600'} rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300`}
                     />
                   </div>
+                  {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
                 </div>
 
                 {/* Phone Field */}
@@ -570,9 +637,10 @@ const Register = () => {
                       value={formData.phone}
                       onChange={handleChange}
                       placeholder="Enter your phone number"
-                      className="w-full pl-11 pr-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                      className={`w-full pl-11 pr-4 py-3 bg-cream-50 dark:bg-dark-700 border ${errors.phone ? 'border-red-500' : 'border-cream-200 dark:border-dark-600'} rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300`}
                     />
                   </div>
+                  {errors.phone && <p className="mt-1 text-sm text-red-500">{errors.phone}</p>}
                 </div>
 
                 {/* Navigation Buttons */}
@@ -600,7 +668,7 @@ const Register = () => {
           {step === 3 && (
             <div>
               <h2 className="text-2xl font-playfair font-bold text-teal-900 dark:text-cream-50 mb-6 text-center">
-                Create your password
+                Create a secure password
               </h2>
               <form className="space-y-5">
                 {/* Password Field */}
@@ -615,8 +683,8 @@ const Register = () => {
                       name="password"
                       value={formData.password}
                       onChange={handleChange}
-                      placeholder="Create a strong password"
-                      className="w-full pl-11 pr-11 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                      placeholder="At least 8 characters"
+                      className={`w-full pl-11 pr-11 py-3 bg-cream-50 dark:bg-dark-700 border ${errors.password ? 'border-red-500' : 'border-cream-200 dark:border-dark-600'} rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300`}
                     />
                     <button
                       type="button"
@@ -626,7 +694,14 @@ const Register = () => {
                       {showPassword ? <FaEyeSlash /> : <FaEye />}
                     </button>
                   </div>
-                  <p className="text-xs text-teal-600 dark:text-cream-300 mt-1">Minimum 6 characters</p>
+                  {errors.password && <p className="mt-1 text-sm text-red-500">{errors.password}</p>}
+                  <button
+                    type="button"
+                    onClick={generateStrongPassword}
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 mt-1 flex items-center gap-1"
+                  >
+                    <FaMagic /> Generate Strong Password
+                  </button>
                 </div>
 
                 {/* Confirm Password Field */}
@@ -642,7 +717,7 @@ const Register = () => {
                       value={formData.confirmPassword}
                       onChange={handleChange}
                       placeholder="Confirm your password"
-                      className="w-full pl-11 pr-11 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                      className={`w-full pl-11 pr-11 py-3 bg-cream-50 dark:bg-dark-700 border ${errors.confirmPassword ? 'border-red-500' : 'border-cream-200 dark:border-dark-600'} rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300`}
                     />
                     <button
                       type="button"
@@ -651,6 +726,29 @@ const Register = () => {
                     >
                       {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
                     </button>
+                  </div>
+                  {errors.confirmPassword && <p className="mt-1 text-sm text-red-500">{errors.confirmPassword}</p>}
+                </div>
+
+                {/* Password Strength Indicator (basic) */}
+                <div className="text-xs text-teal-600 dark:text-cream-300 space-y-1 bg-cream-50 dark:bg-dark-700/50 p-3 rounded-lg border border-cream-200 dark:border-dark-600/50">
+                  <p className="font-semibold mb-1">Password must contain:</p>
+                  <div className="grid grid-cols-2 gap-x-2">
+                    <p className={`flex items-center gap-1 ${formData.password.length >= 8 ? 'text-green-600 dark:text-green-400' : ''}`}>
+                      {formData.password.length >= 8 ? '✓' : '○'} At least 8 characters
+                    </p>
+                    <p className={`flex items-center gap-1 ${/[A-Z]/.test(formData.password) ? 'text-green-600 dark:text-green-400' : ''}`}>
+                      {/[A-Z]/.test(formData.password) ? '✓' : '○'} One uppercase letter
+                    </p>
+                    <p className={`flex items-center gap-1 ${/[a-z]/.test(formData.password) ? 'text-green-600 dark:text-green-400' : ''}`}>
+                      {/[a-z]/.test(formData.password) ? '✓' : '○'} One lowercase letter
+                    </p>
+                    <p className={`flex items-center gap-1 ${/\d/.test(formData.password) ? 'text-green-600 dark:text-green-400' : ''}`}>
+                      {/\d/.test(formData.password) ? '✓' : '○'} One number
+                    </p>
+                    <p className={`flex items-center gap-1 ${/[!@#$%^&*()_+]/.test(formData.password) ? 'text-green-600 dark:text-green-400' : ''}`}>
+                      {/[!@#$%^&*()_+]/.test(formData.password) ? '✓' : '○'} One special character
+                    </p>
                   </div>
                 </div>
 
@@ -706,8 +804,9 @@ const Register = () => {
                     value={formData.adminDesignation}
                     onChange={handleChange}
                     placeholder="e.g., Founder, Director, Administrator"
-                    className="w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                    className={`w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border ${errors.adminDesignation ? 'border-red-500' : 'border-cream-200 dark:border-dark-600'} rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300`}
                   />
+                  {errors.adminDesignation && <p className="mt-1 text-sm text-red-500">{errors.adminDesignation}</p>}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -734,8 +833,9 @@ const Register = () => {
                       value={formData.adminAlternatePhone}
                       onChange={handleChange}
                       placeholder="Another reachable number"
-                      className="w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                      className={`w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border ${errors.adminAlternatePhone ? 'border-red-500' : 'border-cream-200 dark:border-dark-600'} rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300`}
                     />
+                    {errors.adminAlternatePhone && <p className="mt-1 text-sm text-red-500">{errors.adminAlternatePhone}</p>}
                   </div>
                 </div>
 
@@ -778,12 +878,13 @@ const Register = () => {
                       name="governmentIdType"
                       value={formData.governmentIdType}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                      className={`w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border ${errors.governmentIdType ? 'border-red-500' : 'border-cream-200 dark:border-dark-600'} rounded-xl text-teal-900 dark:text-cream-50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300`}
                     >
                       {governmentIdOptions.map((option) => (
                         <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </select>
+                    {errors.governmentIdType && <p className="mt-1 text-sm text-red-500">{errors.governmentIdType}</p>}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-teal-800 dark:text-cream-100 mb-2">
@@ -797,9 +898,10 @@ const Register = () => {
                         value={formData.governmentIdNumber}
                         onChange={handleChange}
                         placeholder="Enter ID number"
-                        className="w-full pl-11 pr-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                        className={`w-full pl-11 pr-4 py-3 bg-cream-50 dark:bg-dark-700 border ${errors.governmentIdNumber ? 'border-red-500' : 'border-cream-200 dark:border-dark-600'} rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300`}
                       />
                     </div>
+                    {errors.governmentIdNumber && <p className="mt-1 text-sm text-red-500">{errors.governmentIdNumber}</p>}
                   </div>
                 </div>
 
@@ -808,14 +910,17 @@ const Register = () => {
                     Emergency Contact <span className="text-coral-500">*</span>
                   </label>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <input
-                      type="text"
-                      name="emergencyContactName"
-                      value={formData.emergencyContactName}
-                      onChange={handleChange}
-                      placeholder="Name"
-                      className="w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
-                    />
+                    <div className="flex flex-col">
+                      <input
+                        type="text"
+                        name="emergencyContactName"
+                        value={formData.emergencyContactName}
+                        onChange={handleChange}
+                        placeholder="Name"
+                        className={`w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border ${errors.emergencyContactName ? 'border-red-500' : 'border-cream-200 dark:border-dark-600'} rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300`}
+                      />
+                      {errors.emergencyContactName && <p className="mt-1 text-sm text-red-500">{errors.emergencyContactName}</p>}
+                    </div>
                     <input
                       type="text"
                       name="emergencyContactRelation"
@@ -824,14 +929,17 @@ const Register = () => {
                       placeholder="Relation (optional)"
                       className="w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
                     />
-                    <input
-                      type="tel"
-                      name="emergencyContactPhone"
-                      value={formData.emergencyContactPhone}
-                      onChange={handleChange}
-                      placeholder="Phone number"
-                      className="w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
-                    />
+                    <div className="flex flex-col">
+                      <input
+                        type="tel"
+                        name="emergencyContactPhone"
+                        value={formData.emergencyContactPhone}
+                        onChange={handleChange}
+                        placeholder="Phone number"
+                        className={`w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border ${errors.emergencyContactPhone ? 'border-red-500' : 'border-cream-200 dark:border-dark-600'} rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300`}
+                      />
+                      {errors.emergencyContactPhone && <p className="mt-1 text-sm text-red-500">{errors.emergencyContactPhone}</p>}
+                    </div>
                   </div>
                 </div>
 
@@ -881,9 +989,10 @@ const Register = () => {
                       value={formData.orphanageName}
                       onChange={handleChange}
                       placeholder="Enter orphanage name"
-                      className="w-full pl-11 pr-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                      className={`w-full pl-11 pr-4 py-3 bg-cream-50 dark:bg-dark-700 border ${errors.orphanageName ? 'border-red-500' : 'border-cream-200 dark:border-dark-600'} rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300`}
                     />
                   </div>
+                  {errors.orphanageName && <p className="mt-1 text-sm text-red-500">{errors.orphanageName}</p>}
                 </div>
 
                 {/* Registration Number */}
@@ -899,9 +1008,10 @@ const Register = () => {
                       value={formData.registrationNumber}
                       onChange={handleChange}
                       placeholder="Enter registration/license number"
-                      className="w-full pl-11 pr-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                      className={`w-full pl-11 pr-4 py-3 bg-cream-50 dark:bg-dark-700 border ${errors.registrationNumber ? 'border-red-500' : 'border-cream-200 dark:border-dark-600'} rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300`}
                     />
                   </div>
+                  {errors.registrationNumber && <p className="mt-1 text-sm text-red-500">{errors.registrationNumber}</p>}
                 </div>
 
                 {/* Orphanage Email and Phone */}
@@ -918,9 +1028,10 @@ const Register = () => {
                         value={formData.orphanageEmail}
                         onChange={handleChange}
                         placeholder="orphanage@email.com"
-                        className="w-full pl-11 pr-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                        className={`w-full pl-11 pr-4 py-3 bg-cream-50 dark:bg-dark-700 border ${errors.orphanageEmail ? 'border-red-500' : 'border-cream-200 dark:border-dark-600'} rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300`}
                       />
                     </div>
+                    {errors.orphanageEmail && <p className="mt-1 text-sm text-red-500">{errors.orphanageEmail}</p>}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-teal-800 dark:text-cream-100 mb-2">
@@ -934,9 +1045,10 @@ const Register = () => {
                         value={formData.orphanagePhone}
                         onChange={handleChange}
                         placeholder="+91 XXXXX XXXXX"
-                        className="w-full pl-11 pr-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                        className={`w-full pl-11 pr-4 py-3 bg-cream-50 dark:bg-dark-700 border ${errors.orphanagePhone ? 'border-red-500' : 'border-cream-200 dark:border-dark-600'} rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300`}
                       />
                     </div>
+                    {errors.orphanagePhone && <p className="mt-1 text-sm text-red-500">{errors.orphanagePhone}</p>}
                   </div>
                 </div>
 
@@ -1019,9 +1131,10 @@ const Register = () => {
                       onChange={handleChange}
                       placeholder="Enter street address"
                       rows="2"
-                      className="w-full pl-11 pr-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300 resize-none"
+                      className={`w-full pl-11 pr-4 py-3 bg-cream-50 dark:bg-dark-700 border ${errors.orphanageAddress ? 'border-red-500' : 'border-cream-200 dark:border-dark-600'} rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300 resize-none`}
                     />
                   </div>
+                  {errors.orphanageAddress && <p className="mt-1 text-sm text-red-500">{errors.orphanageAddress}</p>}
                 </div>
 
                 {/* City and State */}
@@ -1036,8 +1149,9 @@ const Register = () => {
                       value={formData.orphanageCity}
                       onChange={handleChange}
                       placeholder="City"
-                      className="w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                      className={`w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border ${errors.orphanageCity ? 'border-red-500' : 'border-cream-200 dark:border-dark-600'} rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300`}
                     />
+                    {errors.orphanageCity && <p className="mt-1 text-sm text-red-500">{errors.orphanageCity}</p>}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-teal-800 dark:text-cream-100 mb-2">
@@ -1049,8 +1163,9 @@ const Register = () => {
                       value={formData.orphanageState}
                       onChange={handleChange}
                       placeholder="State"
-                      className="w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                      className={`w-full px-4 py-3 bg-cream-50 dark:bg-dark-700 border ${errors.orphanageState ? 'border-red-500' : 'border-cream-200 dark:border-dark-600'} rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300`}
                     />
+                    {errors.orphanageState && <p className="mt-1 text-sm text-red-500">{errors.orphanageState}</p>}
                   </div>
                 </div>
 
@@ -1120,7 +1235,7 @@ const Register = () => {
                   <label className="block text-sm font-medium text-teal-800 dark:text-cream-100 mb-2">
                     Government ID Proof (Admin) <span className="text-coral-500">*</span>
                   </label>
-                  <div className="border-2 border-dashed border-cream-300 dark:border-dark-600 rounded-xl p-6 text-center hover:border-coral-400 dark:hover:border-coral-500 transition-colors">
+                  <div className={`border-2 border-dashed ${errors.adminIdDocument ? 'border-red-500' : 'border-cream-300 dark:border-dark-600'} rounded-xl p-6 text-center hover:border-coral-400 dark:hover:border-coral-500 transition-colors`}>
                     {documents.adminIdDocument ? (
                       <div className="flex items-center justify-between bg-cream-50 dark:bg-dark-700 rounded-lg p-3">
                         <div className="flex items-center gap-3">
@@ -1157,6 +1272,7 @@ const Register = () => {
                       </label>
                     )}
                   </div>
+                  {errors.adminIdDocument && <p className="mt-1 text-sm text-red-500">{errors.adminIdDocument}</p>}
                 </div>
 
                 {/* Registration Certificate */}
@@ -1281,7 +1397,7 @@ const Register = () => {
                   
                   {/* Add more documents button */}
                   {documents.otherDocuments.length < 5 && (
-                    <div className="border-2 border-dashed border-cream-300 dark:border-dark-600 rounded-xl p-4 text-center hover:border-coral-400 dark:hover:border-coral-500 transition-colors">
+                    <div className={`border-2 border-dashed ${errors.otherDocuments ? 'border-red-500' : 'border-cream-300 dark:border-dark-600'} rounded-xl p-4 text-center hover:border-coral-400 dark:hover:border-coral-500 transition-colors`}>
                       <label className="cursor-pointer">
                         <input
                           type="file"
@@ -1298,6 +1414,7 @@ const Register = () => {
                       </label>
                     </div>
                   )}
+                  {errors.otherDocuments && <p className="mt-1 text-sm text-red-500">{errors.otherDocuments}</p>}
                 </div>
 
                 {/* Info Note */}

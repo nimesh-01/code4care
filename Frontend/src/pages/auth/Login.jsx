@@ -29,6 +29,7 @@ const Login = () => {
     emailOrUsername: '',
     password: '',
   })
+  const [errors, setErrors] = useState({})
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [statusInfo, setStatusInfo] = useState(null)
@@ -61,14 +62,25 @@ const Login = () => {
     if (statusInfo) setStatusInfo(null)
     setAppealMessage('')
     setAppealSent(false)
+    if (errors[e.target.name]) {
+      setErrors({ ...errors, [e.target.name]: null })
+    }
+    if (errors.general) {
+      setErrors(prev => ({ ...prev, general: null }))
+    }
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setStatusInfo(null)
+    setErrors({})
     
-    if (!formData.emailOrUsername || !formData.password) {
-      toast.error('Please fill in all fields')
+    const newErrors = {}
+    if (!formData.emailOrUsername) newErrors.emailOrUsername = 'Email or Username is required'
+    if (!formData.password) newErrors.password = 'Password is required'
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
       return
     }
 
@@ -123,7 +135,7 @@ const Login = () => {
           reason: errorData.reason || errorData.blockReason,
         })
       } else {
-        toast.error(errorData?.message || 'Login failed. Please try again.')
+        setErrors({ general: errorData?.message || 'Login failed. Please try again.' })
       }
     } finally {
       setLoading(false)
@@ -302,6 +314,11 @@ const Login = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {errors.general && (
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl text-sm text-center">
+                {errors.general}
+              </div>
+            )}
             {/* Email/Username Field */}
             <div>
               <label className="block text-sm font-medium text-teal-800 dark:text-cream-100 mb-2">
@@ -315,9 +332,10 @@ const Login = () => {
                   value={formData.emailOrUsername}
                   onChange={handleChange}
                   placeholder="you@example.com or username"
-                  className="w-full pl-11 pr-4 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                  className={`w-full pl-11 pr-4 py-3 bg-cream-50 dark:bg-dark-700 border ${errors.emailOrUsername ? 'border-red-500' : 'border-cream-200 dark:border-dark-600'} rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300`}
                 />
               </div>
+              {errors.emailOrUsername && <p className="mt-1 text-sm text-red-500">{errors.emailOrUsername}</p>}
             </div>
 
             {/* Password Field */}
@@ -333,7 +351,7 @@ const Login = () => {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="Enter your password"
-                  className="w-full pl-11 pr-11 py-3 bg-cream-50 dark:bg-dark-700 border border-cream-200 dark:border-dark-600 rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300"
+                  className={`w-full pl-11 pr-11 py-3 bg-cream-50 dark:bg-dark-700 border ${errors.password ? 'border-red-500' : 'border-cream-200 dark:border-dark-600'} rounded-xl text-teal-900 dark:text-cream-50 placeholder-teal-400 dark:placeholder-cream-300/50 focus:outline-none focus:ring-2 focus:ring-coral-400 dark:focus:ring-coral-500 focus:border-transparent transition-all duration-300`}
                 />
                 <button
                   type="button"

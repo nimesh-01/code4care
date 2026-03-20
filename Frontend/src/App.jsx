@@ -1,5 +1,7 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
+import SplashScreen from './components/SplashScreen'
 
 // Pages
 import Home from './pages/Home'
@@ -15,6 +17,7 @@ import Events from './pages/Events'
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
 import ForgotPassword from './pages/auth/ForgotPassword'
+import ResetPassword from './pages/auth/ResetPassword'
 import AdminLayout from './pages/dashboard/admin/AdminLayout'
 import DashboardOverview from './pages/dashboard/admin/DashboardOverview'
 import ChildrenManagement from './pages/dashboard/admin/ChildrenManagement'
@@ -85,8 +88,17 @@ const ProfileAccessGate = () => {
 }
 
 function App() {
+  const location = useLocation()
+  const [showSplash, setShowSplash] = useState(location.pathname === '/')
+
   return (
     <div className="min-h-screen bg-gray-50">
+      {showSplash && (
+        <SplashScreen 
+          isVisible={showSplash} 
+          onFinish={() => setShowSplash(false)} 
+        />
+      )}
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Home />} />
@@ -99,6 +111,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/orphanage/:orphanageId/posts" element={<OrphanagePosts />} />
         <Route path="/events" element={<Events />} />
         <Route path="/contact" element={<Contact />} />

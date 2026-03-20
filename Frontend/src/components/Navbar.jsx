@@ -114,8 +114,8 @@ const Navbar = () => {
                 {!isPathActive('/children') && <NavLink to="/children">Children</NavLink>}
                 {!isPathActive('/orphanages') && <NavLink to="/orphanages">Orphanages</NavLink>}
                 {canViewAppointments && !isPathActive('/appointments') && <NavLink to="/appointments">Appointments</NavLink>}
-                {!isPathActive('/events') && <NavLink to="/events">Events</NavLink>}
-                {!isPathActive('/donate') && <NavLink to="/donate">Donate</NavLink>}
+                {user && !isPathActive('/events') && <NavLink to="/events">Events</NavLink>}
+                {user && !isPathActive('/donate') && <NavLink to="/donate">Donate</NavLink>}
               </>
             )}
             
@@ -240,8 +240,8 @@ const Navbar = () => {
                   {canViewAppointments && !isPathActive('/appointments') && (
                     <MobileNavLink to="/appointments" onClick={() => setIsOpen(false)}>Appointments</MobileNavLink>
                   )}
-                  {!isPathActive('/events') && <MobileNavLink to="/events" onClick={() => setIsOpen(false)}>Events</MobileNavLink>}
-                  {!isPathActive('/donate') && <MobileNavLink to="/donate" onClick={() => setIsOpen(false)}>Donate</MobileNavLink>}
+                  {user && !isPathActive('/events') && <MobileNavLink to="/events" onClick={() => setIsOpen(false)}>Events</MobileNavLink>}
+                  {user && !isPathActive('/donate') && <MobileNavLink to="/donate" onClick={() => setIsOpen(false)}>Donate</MobileNavLink>}
                 </>
               )}
               
