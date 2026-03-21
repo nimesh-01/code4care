@@ -18,15 +18,16 @@ connectDb().then(() => {
     console.error('Failed to connect to DB:', err)
 })
 
-const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
-    ? process.env.CORS_ALLOWED_ORIGINS.split(',')
-    : [process.env.FRONTEND_URL || 'http://localhost:3000']
+const allowedOrigins = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    process.env.FRONTEND_URL,
+    ...(process.env.CORS_ALLOWED_ORIGINS ? process.env.CORS_ALLOWED_ORIGINS.split(',') : [])
+].filter(Boolean);
+
 const corsOptions = {
-    origin: (origin, callback) => {
-        if (!origin) return callback(null, true)
-        if (allowedOrigins.indexOf(origin) !== -1) return callback(null, true)
-        return callback(new Error('CORS policy: This origin is not allowed'))
-    },
+    origin: allowedOrigins,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     credentials: true,
 }
 app.use(cors(corsOptions))

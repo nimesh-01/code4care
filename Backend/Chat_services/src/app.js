@@ -7,10 +7,17 @@ const chatRoutes = require('./routes/chat.routes');
 const app = express();
 
 // CORS configuration
+const allowedOrigins = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    process.env.FRONTEND_URL,
+    ...(process.env.CORS_ALLOWED_ORIGINS ? process.env.CORS_ALLOWED_ORIGINS.split(',') : [])
+].filter(Boolean);
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: allowedOrigins,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 

@@ -7,18 +7,16 @@ const { errorHandler, notFound } = require('./middlewares/error.middleware');
 const app = express();
 
 // Middleware
-const allowedOrigins = (process.env.CLIENT_URL ? process.env.CLIENT_URL.split(',') : [])
-    .map((url) => url.trim())
-    .filter(Boolean)
-    .concat(['http://localhost:3000', 'http://localhost:5173'])
+const allowedOrigins = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    process.env.FRONTEND_URL,
+    ...(process.env.CLIENT_URL ? process.env.CLIENT_URL.split(',') : [])
+].map(url => url && url.trim()).filter(Boolean);
 
 app.use(cors({
-    origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
-            return callback(null, true)
-        }
-        return callback(new Error(`Not allowed by CORS: ${origin}`))
-    },
+    origin: allowedOrigins,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     credentials: true
 }));
 app.use(express.json());

@@ -12,9 +12,16 @@ const userSockets = new Map(); // Map<socketId, userId>
  * Initialize Socket.io server
  */
 function initializeSocket(server) {
+    const allowedOrigins = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        process.env.FRONTEND_URL,
+        ...(process.env.CORS_ALLOWED_ORIGINS ? process.env.CORS_ALLOWED_ORIGINS.split(',') : [])
+    ].filter(Boolean);
+
     io = new Server(server, {
         cors: {
-            origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+            origin: allowedOrigins,
             methods: ['GET', 'POST'],
             credentials: true
         },
