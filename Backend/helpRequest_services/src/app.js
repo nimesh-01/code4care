@@ -5,6 +5,9 @@ const helpRequestRoutes = require('./routes/helpRequest.routes');
 
 const app = express();
 
+// Trust proxy for Render/production
+app.set('trust proxy', 1);
+
 const allowedOrigins = [
   "http://localhost:5173",
   process.env.FRONTEND_URL,

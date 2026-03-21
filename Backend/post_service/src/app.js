@@ -6,6 +6,9 @@ const postRoutes = require('./routes/postRoutes')
 
 const app = express()
 
+// Trust proxy for Render/production
+app.set('trust proxy', 1)
+
 // CORS configuration
 const allowedOrigins = [
   "http://localhost:5173",

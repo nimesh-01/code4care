@@ -7,10 +7,11 @@ const cookieParser = require('cookie-parser');
 
 const app = express();
 
+// Trust the proxy (Render/Heroku/Nginx) to ensure secure cookies work
+app.set('trust proxy', 1);
+
 // ✅ Convert env string → array safely
 const allowedOrigins = [
-  "https://agentic-ai-01.onrender.com",
-  "https://agenticais.netlify.app",
   "http://localhost:5173",
   process.env.FRONTEND_URL
 ].filter(Boolean);

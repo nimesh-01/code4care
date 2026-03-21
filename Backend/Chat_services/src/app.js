@@ -6,9 +6,11 @@ const chatRoutes = require('./routes/chat.routes');
 
 const app = express();
 
+// Trust proxy for Render/production
+app.set('trust proxy', 1);
+
 // CORS configuration
 const allowedOrigins = [
-    "http://localhost:3000",
     "http://localhost:5173",
     process.env.FRONTEND_URL,
     ...(process.env.CORS_ALLOWED_ORIGINS ? process.env.CORS_ALLOWED_ORIGINS.split(',') : [])

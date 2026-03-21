@@ -1,0 +1,11 @@
+services:
+  - type: static
+    name: soulconnect-frontend
+    env: static
+    buildCommand: npm install && npm run build
+    publishDir: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    rootDir: Frontend

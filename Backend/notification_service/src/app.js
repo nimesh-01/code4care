@@ -9,6 +9,9 @@ const notificationRoutes = require('./routes/notification.routes')
 
 const app = express()
 
+// Trust proxy for Render/production
+app.set('trust proxy', 1)
+
 // Connect to MongoDB and RabbitMQ
 connectDb().then(() => {
     connect().then(() => {
@@ -19,7 +22,6 @@ connectDb().then(() => {
 })
 
 const allowedOrigins = [
-    "http://localhost:3000",
     "http://localhost:5173",
     process.env.FRONTEND_URL,
     ...(process.env.CORS_ALLOWED_ORIGINS ? process.env.CORS_ALLOWED_ORIGINS.split(',') : [])

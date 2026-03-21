@@ -6,9 +6,11 @@ const { errorHandler, notFound } = require('./middlewares/error.middleware');
 
 const app = express();
 
+// Trust proxy for Render/production
+app.set('trust proxy', 1);
+
 // Middleware
 const allowedOrigins = [
-    "http://localhost:3000",
     "http://localhost:5173",
     process.env.FRONTEND_URL,
     ...(process.env.CLIENT_URL ? process.env.CLIENT_URL.split(',') : [])

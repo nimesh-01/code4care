@@ -9,11 +9,12 @@ const childrenRouter = require('./routes/children.routes');
 
 const app = express();
 
+// Trust proxy for Render/production
+app.set('trust proxy', 1);
+
 // CORS configuration
 const allowedOrigins = [
     "http://localhost:5173",
-    "http://localhost:5174",
-    "http://localhost:5175",
     process.env.FRONTEND_URL,
     ...(process.env.CORS_ALLOWED_ORIGINS ? process.env.CORS_ALLOWED_ORIGINS.split(',') : [])
 ].filter(Boolean);

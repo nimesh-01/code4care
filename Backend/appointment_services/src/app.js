@@ -6,6 +6,9 @@ const { connect } = require('./broker/broker');
 
 const app = express();
 
+// Trust proxy for Render/production
+app.set('trust proxy', 1);
+
 // Connect to RabbitMQ
 connect().then(() => {
   console.log('Broker connected for appointment service');
